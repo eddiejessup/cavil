@@ -25,6 +25,7 @@ dependencies:
   - binary
   - bytestring
   - cryptohash-sha256
+  - data-default
   - generic-optics
   - optics
   - optparse-applicative
@@ -36,6 +37,7 @@ dependencies:
   - time
   - transformers
   - uuid
+  - wai-extra
   - warp
 
 library:

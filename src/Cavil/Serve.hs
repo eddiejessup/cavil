@@ -142,5 +142,5 @@ type AppM = ReaderT AppEnv Handler
 appToHandler :: AppEnv -> AppM a -> Handler a
 appToHandler env m = runReaderT m env
 
-app :: AppEnv -> Application
-app env = genericServeT (appToHandler env) record
+mkWebApplication :: AppEnv -> Application
+mkWebApplication env = genericServeT (appToHandler env) record

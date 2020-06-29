@@ -3,8 +3,11 @@
 module Main where
 
 import Cavil.Serve
+import qualified Data.Default as Default
 import qualified Database.PostgreSQL.Simple as PG
 import Network.Wai.Handler.Warp (run)
+import qualified Network.Wai.Middleware.RequestLogger as ReqLog
+import qualified Network.Wai.Middleware.RequestLogger.JSON as ReqLog
 import Options.Applicative
 import Protolude hiding (option)
 
@@ -57,10 +60,18 @@ optsInfo =
         <> header "cavil - tracked, randomised decisions"
     )
 
+requestLoggerSettings :: ReqLog.RequestLoggerSettings
+requestLoggerSettings =
+  Default.def
+    { ReqLog.outputFormat = ReqLog.CustomOutputFormatWithDetails ReqLog.formatAsJSON
+    }
+
 main :: IO ()
 main = do
-  Options { pgConnectInfo, listenPort } <- execParser optsInfo
+  Options {pgConnectInfo, listenPort} <- execParser optsInfo
   pgConn <- PG.connect pgConnectInfo
-  let env = AppEnv { pgConn }
+  logMiddleware <- ReqLog.mkRequestLogger requestLoggerSettings
+  let env = AppEnv {pgConn}
   putText $ "Starting at http://localhost:" <> show listenPort
-  run (fromIntegral listenPort) (app env)
+  let webApp = logMiddleware $ mkWebApplication env
+  run (fromIntegral listenPort) webApp
