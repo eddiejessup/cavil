@@ -1,6 +1,6 @@
 {
-  "short_name": "React App",
-  "name": "Create React App Sample",
+  "short_name": "Cavil client",
+  "name": "Cavil client",
   "icons": [
     {
       "src": "favicon.ico",
