@@ -1,0 +1,78 @@
+name: cavil
+version: 0.1.0.0
+synopsis: Recorded, randomised decisions
+description: See README at <https://github.com/eddiejessup/cavil#readme>
+maintainer: Elliot Marsden <elliot.marsden@gmail.com>
+github: eddiejessup/cavil
+extra-source-files:
+  - CHANGELOG.md
+  - README.md
+
+ghc-options:
+- -Wall
+- -Wcompat
+- -Wincomplete-record-updates
+- -Wincomplete-uni-patterns
+- -Wredundant-constraints
+- -Wno-warnings-deprecations
+- -Wno-incomplete-patterns
+- -Wno-incomplete-uni-patterns
+- -Wmissing-deriving-strategies
+
+dependencies:
+  - aeson
+  - base
+  - binary
+  - bytestring
+  - cryptohash-sha256
+  - generic-optics
+  - optics
+  - optparse-applicative
+  - postgresql-simple
+  - protolude
+  - servant
+  - servant-server
+  - text
+  - time
+  - transformers
+  - uuid
+  - warp
+
+library:
+  source-dirs: src
+
+executables:
+  app:
+    main: Main.hs
+    source-dirs: app
+    dependencies:
+      - cavil
+
+default-extensions:
+- ConstraintKinds
+- DataKinds
+- DeriveAnyClass
+- DeriveFoldable
+- DeriveFunctor
+- DeriveGeneric
+- DeriveLift
+- DeriveTraversable
+- DerivingStrategies
+- EmptyCase
+- FlexibleContexts
+- FlexibleInstances
+- GeneralizedNewtypeDeriving
+- InstanceSigs
+- LambdaCase
+- MultiParamTypeClasses
+- MultiWayIf
+- NamedFieldPuns
+- NoImplicitPrelude
+- OverloadedStrings
+- ScopedTypeVariables
+- StandaloneDeriving
+- StrictData
+- TupleSections
+- TypeApplications
+- TypeFamilies
+- TypeOperators

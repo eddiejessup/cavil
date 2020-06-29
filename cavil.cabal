@@ -1,0 +1,83 @@
+cabal-version: 1.12
+
+-- This file has been generated from package.yaml by hpack version 0.34.2.
+--
+-- see: https://github.com/sol/hpack
+
+name:           cavil
+version:        0.1.0.0
+synopsis:       Recorded, randomised decisions
+description:    See README at <https://github.com/eddiejessup/cavil#readme>
+homepage:       https://github.com/eddiejessup/cavil#readme
+bug-reports:    https://github.com/eddiejessup/cavil/issues
+maintainer:     Elliot Marsden <elliot.marsden@gmail.com>
+build-type:     Simple
+extra-source-files:
+    CHANGELOG.md
+    README.md
+
+source-repository head
+  type: git
+  location: https://github.com/eddiejessup/cavil
+
+library
+  exposed-modules:
+      Cavil.Api
+      Cavil.Event
+      Cavil.Hashing
+      Cavil.Impl
+      Cavil.Serve
+  other-modules:
+      Paths_cavil
+  hs-source-dirs:
+      src
+  default-extensions: ConstraintKinds DataKinds DeriveAnyClass DeriveFoldable DeriveFunctor DeriveGeneric DeriveLift DeriveTraversable DerivingStrategies EmptyCase FlexibleContexts FlexibleInstances GeneralizedNewtypeDeriving InstanceSigs LambdaCase MultiParamTypeClasses MultiWayIf NamedFieldPuns NoImplicitPrelude OverloadedStrings ScopedTypeVariables StandaloneDeriving StrictData TupleSections TypeApplications TypeFamilies TypeOperators
+  ghc-options: -Wall -Wcompat -Wincomplete-record-updates -Wincomplete-uni-patterns -Wredundant-constraints -Wno-warnings-deprecations -Wno-incomplete-patterns -Wno-incomplete-uni-patterns -Wmissing-deriving-strategies
+  build-depends:
+      aeson
+    , base
+    , binary
+    , bytestring
+    , cryptohash-sha256
+    , generic-optics
+    , optics
+    , optparse-applicative
+    , postgresql-simple
+    , protolude
+    , servant
+    , servant-server
+    , text
+    , time
+    , transformers
+    , uuid
+    , warp
+  default-language: Haskell2010
+
+executable app
+  main-is: Main.hs
+  other-modules:
+      Paths_cavil
+  hs-source-dirs:
+      app
+  default-extensions: ConstraintKinds DataKinds DeriveAnyClass DeriveFoldable DeriveFunctor DeriveGeneric DeriveLift DeriveTraversable DerivingStrategies EmptyCase FlexibleContexts FlexibleInstances GeneralizedNewtypeDeriving InstanceSigs LambdaCase MultiParamTypeClasses MultiWayIf NamedFieldPuns NoImplicitPrelude OverloadedStrings ScopedTypeVariables StandaloneDeriving StrictData TupleSections TypeApplications TypeFamilies TypeOperators
+  ghc-options: -Wall -Wcompat -Wincomplete-record-updates -Wincomplete-uni-patterns -Wredundant-constraints -Wno-warnings-deprecations -Wno-incomplete-patterns -Wno-incomplete-uni-patterns -Wmissing-deriving-strategies
+  build-depends:
+      aeson
+    , base
+    , binary
+    , bytestring
+    , cavil
+    , cryptohash-sha256
+    , generic-optics
+    , optics
+    , optparse-applicative
+    , postgresql-simple
+    , protolude
+    , servant
+    , servant-server
+    , text
+    , time
+    , transformers
+    , uuid
+    , warp
+  default-language: Haskell2010
