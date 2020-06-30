@@ -1,21 +1,31 @@
 {-# LANGUAGE DuplicateRecordFields #-}
+{-# LANGUAGE TypeApplications #-}
 
 module Cavil.Api where
 
 import Control.Monad.Fail (MonadFail (fail))
 import qualified Data.Aeson as Ae
+import qualified Data.HashMap.Strict as HM
 import Data.UUID (UUID)
 import Protolude
 import Servant
 import Servant.API.Generic
 
+-- API.
 data Routes route = Routes
-  { _create :: route :- "case" :> Capture "label" CaseLabel :> ReqBody '[JSON] CreateCaseRequest :> Put '[JSON] NoContent,
-    _summarise :: route :- "case" :> Capture "label" CaseLabel :> Get '[JSON] CaseSummary,
-    _decide :: route :- "case" :> Capture "label" CaseLabel :> ReqBody '[JSON] DecisionRequest :> Post '[JSON] Variant
+  { _caseCreate :: route :- "case" :> Capture "label" CaseLabel :> ReqBody '[JSON] CreateCaseRequest :> Put '[JSON] NoContent,
+    _caseSummarise :: route :- "case" :> Capture "label" CaseLabel :> Get '[JSON] CaseSummary,
+    _caseDecide :: route :- "case" :> Capture "label" CaseLabel :> ReqBody '[JSON] DecisionRequest :> Post '[JSON] Variant,
+    _casesSummarise :: route :- "case" :> Get '[JSON] [MultipackCaseSummary]
   }
   deriving stock (Generic)
 
+api :: Proxy (ToServantApi Routes)
+api = genericApi (Proxy :: Proxy Routes)
+
+-- /API.
+
+-- Interface domain types.
 newtype Variant = Variant Int
   deriving stock (Generic)
   deriving newtype (Ae.ToJSON)
@@ -60,6 +70,9 @@ newtype CaseLabel = CaseLabel Text
   deriving stock (Generic, Show)
   deriving newtype (Ae.ToJSON, Ae.FromJSON, FromHttpApiData)
 
+-- /Interface domain types.
+
+-- Request interfaces.
 data CreateCaseRequest = CreateCaseRequest
   { nrVariants :: NrVariants
   }
@@ -72,11 +85,51 @@ data DecisionRequest = DecisionRequest
   deriving stock (Generic)
   deriving anyclass (Ae.FromJSON)
 
+-- /Request interfaces.
+
+-- Response interfaces.
 data CaseSummary = CaseSummary
-  { decisionToken :: DecisionToken
+  { nextDecisionToken :: DecisionToken
   }
   deriving stock (Generic)
   deriving anyclass (Ae.ToJSON)
 
-api :: Proxy (ToServantApi Routes)
-api = genericApi (Proxy :: Proxy Routes)
+data MultipackCaseSummary
+  = FailedCaseSummary ClientError
+  | SucceededCaseSummary CaseSummary
+  deriving stock (Generic)
+
+instance Ae.ToJSON MultipackCaseSummary where
+  toJSON v =
+    let (obj, status) = case v of
+          SucceededCaseSummary caseSummary ->
+            case Ae.toJSON caseSummary of
+              Ae.Object obj_ ->
+                (obj_, "Success")
+              e ->
+                panic $ "Unexpected encoding of case summary: " <> show e
+          FailedCaseSummary err ->
+            (clientErrorAsObject err, "Failure")
+     in Ae.Object $ HM.insert "fetchStatus" (Ae.String status) obj
+
+-- .. Errors.
+data ClientError = ClientError ClientErrorReason (HM.HashMap Text Ae.Value)
+  deriving stock (Generic)
+
+clientErrorAsObject :: ClientError -> HM.HashMap Text Ae.Value
+clientErrorAsObject (ClientError reason vals) =
+  HM.insert "reason" (renderClientReason reason) vals
+
+data ClientErrorReason
+  = OurFault
+  | BadRequest
+  deriving stock (Generic)
+  deriving anyclass (Ae.ToJSON)
+
+renderClientReason :: IsString s => ClientErrorReason -> s
+renderClientReason = \case
+  OurFault -> "ourFault"
+  BadRequest -> "badRequest"
+
+-- .. /Errors.
+-- /Response interfaces.

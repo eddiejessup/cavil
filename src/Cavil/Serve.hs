@@ -1,4 +1,7 @@
+{-# LANGUAGE BlockArguments #-}
 {-# LANGUAGE DuplicateRecordFields #-}
+{-# LANGUAGE LambdaCase #-}
+{-# LANGUAGE TypeApplications #-}
 {-# LANGUAGE UndecidableInstances #-}
 
 module Cavil.Serve where
@@ -6,14 +9,17 @@ module Cavil.Serve where
 import Cavil.Api
 import Cavil.Event
 import Cavil.Impl
+import Data.Aeson ((.=))
+import qualified Data.Aeson as Ae
+import qualified Data.Aeson.Encoding as Ae.Enc
+import qualified Data.Binary.Builder as B
+import qualified Data.ByteString.Lazy as BS.L
 import Data.Generics.Product.Typed
+import qualified Data.HashMap.Strict as HM
 import qualified Database.PostgreSQL.Simple as PG
 import Protolude hiding ((%), Handler)
 import Servant
 import Servant.Server.Generic
-import Data.Aeson
-import qualified Data.Binary.Builder as B
-import qualified Data.ByteString.Lazy as BS.L
 
 data CreateCaseError
   = CreateCaseAggregateError AggregateError
@@ -31,109 +37,119 @@ data DecideError
   | DecideDomainError DecideDomainError
   deriving stock (Generic)
 
-bsFromPairs :: [Series] -> BS.L.ByteString
-bsFromPairs = B.toLazyByteString . fromEncoding . pairs . mconcat
+bsFromAeObject :: HM.HashMap Text Ae.Value -> BS.L.ByteString
+bsFromAeObject = B.toLazyByteString . Ae.fromEncoding . Ae.Enc.value . Ae.Object
 
-mapAggregateError :: AggregateError -> ServerError
+mapAggregateError :: AggregateError -> ClientError
 mapAggregateError (AggregateError aggState detail) =
   case aggState of
     AggregateBeforeRequest _ ->
-      let
-        detailMsg = case detail of
-          CaseAlreadyExists ->
-            "Multiple case creation events"
-          NoSuchCase ->
-            "Case events before case creation"
-          IncoherentDecisionToken ->
-            "Incoherent decision token events in chain"
-      in
-        err500
-          { errBody = bsFromPairs
-              [ "errorType" .= ("Invalid existing data" :: Text)
-              , "errorDetail" .= (detailMsg :: Text)
+      let detailMsg = case detail of
+            CaseAlreadyExists ->
+              "Multiple case creation events"
+            NoSuchCase ->
+              "Case events before case creation"
+            IncoherentDecisionToken ->
+              "Incoherent decision token events in chain"
+       in ClientError OurFault $
+            mconcat
+              [ "errorType" .= ("Invalid existing data" :: Text),
+                "errorDetail" .= (detailMsg :: Text)
               ]
-          }
     AggregateDuringRequest _ ->
-      let
-        detailMsg = case detail of
-          CaseAlreadyExists ->
-            "Case already exists"
-          NoSuchCase ->
-            "No such case found"
-          IncoherentDecisionToken ->
-            "Incoherent decision token"
-      in
-        err400
-          { errBody = bsFromPairs
-              [ "errorType" .= ("Bad request" :: Text)
-              , "errorDetail" .= (detailMsg :: Text)
+      let detailMsg = case detail of
+            CaseAlreadyExists ->
+              "Case already exists"
+            NoSuchCase ->
+              "No such case found"
+            IncoherentDecisionToken ->
+              "Incoherent decision token"
+       in ClientError BadRequest $
+            mconcat
+              [ "errorType" .= ("Bad request" :: Text),
+                "errorDetail" .= (detailMsg :: Text)
               ]
-          }
 
-mapWriteError :: WriteError -> ServerError
+mapWriteError :: WriteError -> ClientError
 mapWriteError e =
-  let
-    detailMsg = case e of
-      InsertedUnexpectedNrRows _ ->
-        "Inserted unexpected number of rows"
-  in
-    err500
-      { errBody = bsFromPairs
-          [ "errorType" .= ("Bad write" :: Text)
-          , "errorDetail" .= (detailMsg :: Text)
+  let detailMsg = case e of
+        InsertedUnexpectedNrRows _ ->
+          "Inserted unexpected number of rows"
+   in ClientError OurFault $
+        mconcat
+          [ "errorType" .= ("Bad write" :: Text),
+            "errorDetail" .= (detailMsg :: Text)
           ]
-      }
 
-createHandler ::
+clientErrorAsServantError :: ClientError -> ServerError
+clientErrorAsServantError (ClientError reason msg) =
+  let respType = case reason of
+        OurFault -> err500
+        BadRequest -> err400
+   in respType {errBody = bsFromAeObject msg}
+
+caseCreate ::
   (MonadIO m, MonadReader AppEnv m, MonadError ServerError m) =>
   CaseLabel ->
   CreateCaseRequest ->
   m NoContent
-createHandler caseLabel ccReq =
+caseCreate caseLabel ccReq =
   runExceptT (createCase caseLabel (getTyped @NrVariants ccReq)) >>= \case
-    Left e -> throwError $ case e of
+    Left e -> throwError $ clientErrorAsServantError $ case e of
       CreateCaseAggregateError aggE -> mapAggregateError aggE
       CreateCaseWriteError we -> mapWriteError we
     Right () ->
       pure NoContent
 
-summariseCaseHandler ::
+caseSummarise ::
   (MonadIO m, MonadReader AppEnv m, MonadError ServerError m) =>
   CaseLabel ->
   m CaseSummary
-summariseCaseHandler caseLabel =
+caseSummarise caseLabel =
   runExceptT (summariseCase caseLabel) >>= \case
-    Left e -> throwError $ case e of
+    Left e -> throwError $ clientErrorAsServantError $ case e of
       CaseSummaryAggregateError aggE -> mapAggregateError aggE
     Right v ->
       pure v
 
-decideHandler ::
+caseDecide ::
   (MonadIO m, MonadReader AppEnv m, MonadError ServerError m) =>
   CaseLabel ->
   DecisionRequest ->
   m Variant
-decideHandler caseLabel dReq =
-  runExceptT (decide caseLabel (getTyped @DecisionToken dReq)) >>= \case
+caseDecide caseLabel dReq =
+  runExceptT (decideCase caseLabel (getTyped @DecisionToken dReq)) >>= \case
     Left e ->
-      throwError $ case e of
+      throwError $ clientErrorAsServantError $ case e of
         DecideAggregateError aggE -> mapAggregateError aggE
         DecideWriteError we -> mapWriteError we
     Right v -> pure v
 
+casesSummarise ::
+  (MonadIO m, MonadReader AppEnv m) =>
+  m [MultipackCaseSummary]
+casesSummarise =
+  getAllCaseLabels >>= mapM \caseLabel ->
+    runExceptT (summariseCase caseLabel) <&> \case
+      Left (CaseSummaryAggregateError aggE) ->
+        FailedCaseSummary (mapAggregateError aggE)
+      Right v ->
+        SucceededCaseSummary v
+
 record :: Routes (AsServerT AppM)
 record =
   Routes
-    { _create = createHandler,
-      _summarise = summariseCaseHandler,
-      _decide = decideHandler
+    { _caseCreate = caseCreate,
+      _caseSummarise = caseSummarise,
+      _caseDecide = caseDecide,
+      _casesSummarise = casesSummarise
     }
 
 -- Environment that handlers can read from.
 data AppEnv = AppEnv
   { pgConn :: PG.Connection
   }
-  deriving stock Generic
+  deriving stock (Generic)
 
 -- Monad that our app handlers run in.
 type AppM = ReaderT AppEnv Handler

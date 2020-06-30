@@ -1,0 +1,15 @@
+cradle:
+  multi:
+    - path: ./
+      config:
+        cradle:
+          cabal:
+            component: "lib:cavil"
+    - path: ./Setup.hs
+      config:
+        cradle:
+          none:
+    - path: doc/
+      config:
+        cradle:
+          none:

@@ -1,4 +1,5 @@
 {-# LANGUAGE DuplicateRecordFields #-}
+{-# LANGUAGE LambdaCase #-}
 {-# LANGUAGE TypeApplications #-}
 
 module Cavil.Impl where
@@ -6,6 +7,7 @@ module Cavil.Impl where
 import Cavil.Api
 import Cavil.Event
 import Cavil.Hashing
+import Cavil.Project
 import Data.Generics.Product.Typed
 import Data.Generics.Sum (AsType, injectTyped)
 import qualified Data.List as List
@@ -63,9 +65,12 @@ summariseCase ::
   m CaseSummary
 summariseCase caseLabel = do
   (agg, _) <- fetchCreatedAggByLabel caseLabel
-  pure $ CaseSummary $ nextDecisionTokenFromAgg agg
+  pure $
+    CaseSummary
+      { nextDecisionToken = nextDecisionTokenFromAgg agg
+      }
 
-decide ::
+decideCase ::
   ( MonadIO m,
     MonadError e m,
     AsType AggregateError e,
@@ -76,7 +81,7 @@ decide ::
   CaseLabel ->
   DecisionToken ->
   m Variant
-decide caseLabel reqDecisionToken = do
+decideCase caseLabel reqDecisionToken = do
   (agg, valAggId) <- fetchCreatedAggByLabel caseLabel
 
   let existingDecisions =
@@ -94,3 +99,9 @@ decide caseLabel reqDecisionToken = do
       pure decidedVariant
     Just existingDecision ->
       pure existingDecision
+
+getAllCaseLabels ::
+  (MonadIO m, MonadReader r m, HasType PG.Connection r) =>
+  m [CaseLabel]
+getAllCaseLabels =
+  caseLabelsFromEvents <$> getAllEvents

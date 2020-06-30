@@ -26,6 +26,7 @@ library
       Cavil.Event
       Cavil.Hashing
       Cavil.Impl
+      Cavil.Project
       Cavil.Serve
   other-modules:
       Paths_cavil
@@ -50,6 +51,7 @@ library
     , text
     , time
     , transformers
+    , unordered-containers
     , uuid
     , wai-extra
     , warp
@@ -81,6 +83,7 @@ executable app
     , text
     , time
     , transformers
+    , unordered-containers
     , uuid
     , wai-extra
     , warp

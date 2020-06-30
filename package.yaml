@@ -39,6 +39,7 @@ dependencies:
   - uuid
   - wai-extra
   - warp
+  - unordered-containers
 
 library:
   source-dirs: src
