@@ -89,7 +89,10 @@ data DecisionRequest = DecisionRequest
 
 -- Response interfaces.
 data CaseSummary = CaseSummary
-  { nextDecisionToken :: DecisionToken
+  { nextDecisionToken :: DecisionToken,
+    caseLabel :: CaseLabel,
+    nrVariants :: NrVariants,
+    decisions :: [DecisionSummary]
   }
   deriving stock (Generic)
   deriving anyclass (Ae.ToJSON)
@@ -111,6 +114,14 @@ instance Ae.ToJSON MultipackCaseSummary where
           FailedCaseSummary err ->
             (clientErrorAsObject err, "Failure")
      in Ae.Object $ HM.insert "fetchStatus" (Ae.String status) obj
+
+data DecisionSummary = DecisionSummary
+  { token :: DecisionToken,
+    decisionTimeUTC :: Text,
+    variant :: Variant
+  }
+  deriving stock (Generic)
+  deriving anyclass (Ae.ToJSON)
 
 -- .. Errors.
 data ClientError = ClientError ClientErrorReason (HM.HashMap Text Ae.Value)

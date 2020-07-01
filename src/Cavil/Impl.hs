@@ -12,6 +12,7 @@ import Data.Generics.Product.Typed
 import Data.Generics.Sum (AsType, injectTyped)
 import qualified Data.List as List
 import qualified Data.Time as T
+import qualified Data.Time.Format.ISO8601 as T
 import qualified Database.PostgreSQL.Simple as PG
 import Protolude hiding ((%))
 
@@ -67,8 +68,19 @@ summariseCase caseLabel = do
   (agg, _) <- fetchCreatedAggByLabel caseLabel
   pure $
     CaseSummary
-      { nextDecisionToken = nextDecisionTokenFromAgg agg
+      { nextDecisionToken = nextDecisionTokenFromAgg agg,
+        caseLabel = getTyped @CaseLabel agg,
+        nrVariants = getTyped @NrVariants agg,
+        decisions = toDecisionSummary <$> getField @"decisions" agg
       }
+
+toDecisionSummary :: (DecisionToken, T.UTCTime, Variant) -> DecisionSummary
+toDecisionSummary (token, decisionTimeUTC, variant) =
+  DecisionSummary
+    { token,
+      decisionTimeUTC = toS $ T.iso8601Show decisionTimeUTC,
+      variant
+    }
 
 decideCase ::
   ( MonadIO m,
