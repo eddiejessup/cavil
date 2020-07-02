@@ -1,9 +1,5 @@
 import React from "react";
 import {
-  makeStyles,
-  useTheme,
-  Theme,
-  createStyles,
   CssBaseline,
   AppBar,
   Toolbar,
@@ -36,8 +32,7 @@ import MenuIcon from "@material-ui/icons/Menu";
 import FolderIcon from "@material-ui/icons/Folder";
 import AssignmentIcon from "@material-ui/icons/Assignment";
 import {CaseLabel, CaseSummary, DecisionSummary} from "./Api"
-
-const drawerWidth = 240;
+import {useStyles} from "./Style"
 
 type Page = "cases" | "decisions";
 
@@ -66,56 +61,7 @@ const Title: React.FunctionComponent<{}> = (props) => (
   </Typography>
 );
 
-const useStyles = makeStyles((theme: Theme) =>
-  createStyles({
-    root: {
-      display: "flex",
-    },
-    drawer: {
-      [theme.breakpoints.up("sm")]: {
-        width: drawerWidth,
-        flexShrink: 0,
-      },
-    },
-    appBar: {
-      [theme.breakpoints.up("sm")]: {
-        width: `calc(100% - ${drawerWidth}px)`,
-        marginLeft: drawerWidth,
-      },
-    },
-    menuButton: {
-      marginRight: theme.spacing(2),
-      [theme.breakpoints.up("sm")]: {
-        display: "none",
-      },
-    },
-    // Put content below app bar
-    toolbar: theme.mixins.toolbar,
-    drawerPaper: {
-      width: drawerWidth,
-    },
-    content: {
-      flexGrow: 1,
-      padding: theme.spacing(3),
-    },
-    container: {
-      paddingTop: theme.spacing(4),
-      paddingBottom: theme.spacing(4),
-    },
-    contentPaper: {
-      padding: theme.spacing(2),
-      display: "flex",
-      overflow: "auto",
-      flexDirection: "column",
-    },
-    formControl: {
-      margin: theme.spacing(1),
-      minWidth: 120,
-    },
-  })
-);
-
-const App: React.FunctionComponent<{}> = (props) => {
+export const App: React.FunctionComponent<{}> = (props) => {
   const [mobileDrawerOpen, setMobileDrawerOpen] = React.useState(false);
   const [currentPage, setCurrentPage] = React.useState<Page>("cases");
   const [currentCase, setCurrentCase] = React.useState<CaseLabel | null>(null);
@@ -125,7 +71,6 @@ const App: React.FunctionComponent<{}> = (props) => {
   };
 
   const classes = useStyles();
-  const theme = useTheme();
 
   const appBar = (
     <AppBar position="fixed" className={classes.appBar}>
@@ -172,7 +117,7 @@ const App: React.FunctionComponent<{}> = (props) => {
       <Hidden smUp implementation="css">
         <Drawer
           variant="temporary"
-          anchor={theme.direction === "rtl" ? "right" : "left"}
+          anchor="left"
           open={mobileDrawerOpen}
           onClose={handleMobileDrawerToggle}
           classes={{
@@ -263,29 +208,30 @@ const CasesScreen: React.FunctionComponent<CasesScreenProps> = (props) => {
     fetchData();
   }, [caseSummaries]);
 
-  let content;
-  if (error) {
-    content = (
-      <Alert severity="error">Could not get cases: {error.message}</Alert>
-    );
-  } else if (caseSummaries == null) {
-    content = <CircularProgress />;
-  } else {
-    content = (
-      <CaseSummaries
-        caseSummaries={caseSummaries}
-        onSelectCase={props.onSelectCase}
-      />
-    );
-  }
-
   return (
     <Container maxWidth="lg" className={classes.container}>
       <Grid container spacing={3}>
         <Grid item xs={12}>
           <Paper className={classes.contentPaper}>
             <Title>Cases</Title>
-            {content}
+            {error && (
+              <Alert severity="error">Could not get cases: {error.message}</Alert>
+            )}
+
+            {caseSummaries == null ?
+              <CircularProgress /> :
+              <CaseSummaries
+                caseSummaries={caseSummaries}
+                onSelectCase={props.onSelectCase}
+              />
+            }
+
+          </Paper>
+        </Grid>
+
+        <Grid item xs={12}>
+          <Paper className={classes.contentPaper}>
+            <Title>New case</Title>
           </Paper>
         </Grid>
       </Grid>
@@ -380,40 +326,36 @@ const DecisionsScreen: React.FunctionComponent<DecisionsScreenProps> = (
     fetchData();
   }, []);
 
-  let caseSelectorElem;
-  if (caseLabelsError) {
-    caseSelectorElem = (
-      <Alert severity="error">
-        Could not get case labels: {caseLabelsError.message}{" "}
-      </Alert>
-    );
-  } else if (caseLabels == null) {
-    caseSelectorElem = <CircularProgress />;
-  } else {
-    caseSelectorElem = (
-      <FormControl className={classes.formControl}>
-        <InputLabel id="decisions-case-label">Case</InputLabel>
-        <Select
-          labelId="decisions-case-label"
-          id="decisions-case"
-          value={selectedCaseLabel}
-          onChange={handleSelectCase}
-        >
-          {caseLabels.map((caseLabel) => (
-            <MenuItem value={caseLabel}>{caseLabel}</MenuItem>
-          ))}
-        </Select>
-      </FormControl>
-    );
-  }
-
   return (
     <Container maxWidth="lg" className={classes.container}>
       <Grid container spacing={3}>
         <Grid item xs={12}>
           <Paper className={classes.contentPaper}>
             <Title>Pick case</Title>
-            {caseSelectorElem}
+
+            {caseLabelsError && (
+              <Alert severity="error">
+                Could not get case labels: {caseLabelsError.message}{" "}
+              </Alert>
+            )}
+
+            {caseLabels == null ?
+              <CircularProgress /> : (
+                <FormControl className={classes.formControl}>
+                  <InputLabel id="decisions-case-label">Case</InputLabel>
+                  <Select
+                    labelId="decisions-case-label"
+                    id="decisions-case"
+                    value={selectedCaseLabel}
+                    onChange={handleSelectCase}
+                  >
+                    {caseLabels.map((caseLabel) => (
+                      <MenuItem value={caseLabel}>{caseLabel}</MenuItem>
+                    ))}
+                  </Select>
+                </FormControl>
+              )
+            }
           </Paper>
         </Grid>
 
@@ -457,23 +399,20 @@ const FetchedCaseSummary: React.FunctionComponent<FetchedCaseSummaryProps> = (
     fetchData();
   }, [props.caseLabel]);
 
-  let content;
-  if (error) {
-    content = (
-      <Alert severity="error">
-        Could not get case summary: {error.message}
-      </Alert>
-    );
-  } else if (caseSummary == null) {
-    content = <CircularProgress />;
-  } else {
-    content = <CaseSummaryComponent caseSummary={caseSummary} />;
-  }
-
   return (
     <React.Fragment>
       <Title>Case {props.caseLabel}</Title>
-      {content}
+
+      {error && (
+        <Alert severity="error">
+          Could not get case summary: {error.message}
+        </Alert>
+      )}
+
+      {caseSummary == null ?
+        <CircularProgress /> :
+        (<CaseSummaryComponent caseSummary={caseSummary} />)
+      }
     </React.Fragment>
   );
 };
@@ -508,5 +447,3 @@ const CaseSummaryComponent: React.FunctionComponent<CaseSummaryProps> = (props) 
     </React.Fragment>
   );
 };
-
-export default App;
