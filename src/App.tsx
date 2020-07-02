@@ -29,7 +29,9 @@ import {
   Select,
   MenuItem,
   CircularProgress,
+  Link,
 } from "@material-ui/core";
+import { Alert } from "@material-ui/lab";
 import MenuIcon from "@material-ui/icons/Menu";
 import FolderIcon from "@material-ui/icons/Folder";
 import AssignmentIcon from "@material-ui/icons/Assignment";
@@ -134,6 +136,7 @@ const useStyles = makeStyles((theme: Theme) =>
 const App: React.FunctionComponent<{}> = (props) => {
   const [mobileDrawerOpen, setMobileDrawerOpen] = React.useState(false);
   const [currentPage, setCurrentPage] = React.useState<Page>("cases");
+  const [currentCase, setCurrentCase] = React.useState<string | null>(null);
 
   const handleMobileDrawerToggle = () => {
     setMobileDrawerOpen(!mobileDrawerOpen);
@@ -216,9 +219,20 @@ const App: React.FunctionComponent<{}> = (props) => {
 
   let page;
   if (currentPage === "cases") {
-    page = <Cases />;
+    page = (
+      <CasesScreen
+        onSelectCase={(caseLabel: string) => {
+          setCurrentCase(caseLabel);
+          setCurrentPage("decisions");
+        }}
+      />
+    );
   } else if (currentPage === "decisions") {
-    page = <Decisions />;
+    page = (
+      <DecisionsScreen
+        currentCase={currentCase === null ? undefined : currentCase}
+      />
+    );
   }
 
   return (
@@ -234,7 +248,11 @@ const App: React.FunctionComponent<{}> = (props) => {
   );
 };
 
-const Cases: React.FunctionComponent<{}> = (props) => {
+interface CasesScreenProps {
+  onSelectCase: (caseLabel: string) => void;
+}
+
+const CasesScreen: React.FunctionComponent<CasesScreenProps> = (props) => {
   const [error, setError] = React.useState<Error | null>(null);
   const [caseSummaries, setCaseSummaries] = React.useState<Array<
     CaseSummary
@@ -260,42 +278,17 @@ const Cases: React.FunctionComponent<{}> = (props) => {
 
   let content;
   if (error) {
-    content = <p>Error: {error.message}</p>;
+    content = (
+      <Alert severity="error">Could not get cases: {error.message}</Alert>
+    );
   } else if (caseSummaries == null) {
     content = <CircularProgress />;
   } else {
     content = (
-      <Table size="small">
-        <TableHead>
-          <TableRow>
-            <TableCell>Label</TableCell>
-            <TableCell>Number of variants</TableCell>
-            <TableCell>Number of decisions</TableCell>
-            <TableCell>Last decision (UTC)</TableCell>
-            <TableCell>Last decision variant</TableCell>
-          </TableRow>
-        </TableHead>
-        <TableBody>
-          {caseSummaries.map((caseSummary) => {
-            const decisions = caseSummary.decisions;
-            const nrDecisions = decisions.length;
-            const lastDecision = decisions[nrDecisions - 1];
-            return (
-              <TableRow key={caseSummary.label}>
-                <TableCell>{caseSummary.label}</TableCell>
-                <TableCell>{caseSummary.nrVariants}</TableCell>
-                <TableCell>{nrDecisions}</TableCell>
-                <TableCell>
-                  {lastDecision ? lastDecision.decisionTimeUTC : ""}
-                </TableCell>
-                <TableCell>
-                  {lastDecision ? lastDecision.variant : ""}
-                </TableCell>
-              </TableRow>
-            );
-          })}
-        </TableBody>
-      </Table>
+      <CaseSummaries
+        caseSummaries={caseSummaries}
+        onSelectCase={props.onSelectCase}
+      />
     );
   }
 
@@ -313,22 +306,70 @@ const Cases: React.FunctionComponent<{}> = (props) => {
   );
 };
 
-const Decisions: React.FunctionComponent<{}> = (props) => {
+interface CaseSummariesProps {
+  caseSummaries: Array<CaseSummary>;
+  onSelectCase: (caseLabel: string) => void;
+}
+
+const CaseSummaries: React.FunctionComponent<CaseSummariesProps> = (props) => {
+  return (
+    <Table size="small">
+      <TableHead>
+        <TableRow>
+          <TableCell>Label</TableCell>
+          <TableCell>Number of variants</TableCell>
+          <TableCell>Number of decisions</TableCell>
+          <TableCell>Last decision (UTC)</TableCell>
+          <TableCell>Last decision variant</TableCell>
+        </TableRow>
+      </TableHead>
+      <TableBody>
+        {props.caseSummaries.map((caseSummary) => {
+          const decisions = caseSummary.decisions;
+          const nrDecisions = decisions.length;
+          const lastDecision = decisions[nrDecisions - 1];
+          return (
+            <TableRow key={caseSummary.label}>
+              <TableCell>
+                <Link
+                  href="#"
+                  onClick={() => {
+                    props.onSelectCase(caseSummary.label);
+                  }}
+                >
+                  {caseSummary.label}
+                </Link>
+              </TableCell>
+              <TableCell>{caseSummary.nrVariants}</TableCell>
+              <TableCell>{nrDecisions}</TableCell>
+              <TableCell>
+                {lastDecision ? lastDecision.decisionTimeUTC : ""}
+              </TableCell>
+              <TableCell>{lastDecision ? lastDecision.variant : ""}</TableCell>
+            </TableRow>
+          );
+        })}
+      </TableBody>
+    </Table>
+  );
+};
+
+interface DecisionsScreenProps {
+  currentCase?: string;
+}
+
+const DecisionsScreen: React.FunctionComponent<DecisionsScreenProps> = (
+  props
+) => {
   const [caseLabelsError, setCaseLabelsError] = React.useState<Error | null>(
     null
   );
   const [caseLabels, setCaseLabels] = React.useState<Array<string> | null>(
     null
   );
-
-  const [caseSummaryError, setCaseSummaryError] = React.useState<Error | null>(
-    null
+  const [selectedCaseLabel, setCaseLabel] = React.useState<string | null>(
+    props.currentCase ? props.currentCase : null
   );
-  const [caseSummary, setCaseSummary] = React.useState<CaseSummary | null>(
-    null
-  );
-
-  const [selectedCaseLabel, setCaseLabel] = React.useState<string | null>(null);
 
   const classes = useStyles();
 
@@ -338,42 +379,26 @@ const Decisions: React.FunctionComponent<{}> = (props) => {
 
   React.useEffect(() => {
     const fetchData = async () => {
-      if (caseLabels == null) {
-        // Fetch labels.
-        setCaseLabelsError(null);
-        try {
-          const res = await fetch("/case");
-          const resJson = await res.json();
-          setCaseLabels(
-            resJson.map((caseSummary: CaseSummary) => caseSummary.label)
-          );
-        } catch (error) {
-          setCaseLabelsError(error);
-        }
-      } else if (selectedCaseLabel != null) {
-        // Fetch summary for selected case.
-        setCaseSummary(null);
-        setCaseSummaryError(null);
-
-        try {
-          const res = await fetch(`/case/${selectedCaseLabel}`);
-          const resJson = await res.json();
-          setCaseSummary(resJson);
-        } catch (error) {
-          setCaseSummaryError(error);
-        }
-      } else {
-        setCaseSummary(null);
-        setCaseSummaryError(null);
+      setCaseLabelsError(null);
+      try {
+        const res = await fetch("/case");
+        const resJson = await res.json();
+        setCaseLabels(
+          resJson.map((caseSummary: CaseSummary) => caseSummary.label)
+        );
+      } catch (error) {
+        setCaseLabelsError(error);
       }
     };
     fetchData();
-  }, [caseLabels, selectedCaseLabel]);
+  }, []);
 
   let caseSelectorElem;
   if (caseLabelsError) {
     caseSelectorElem = (
-      <p>Error loading case labels: {caseLabelsError.message}</p>
+      <Alert severity="error">
+        Could not get case labels: {caseLabelsError.message}{" "}
+      </Alert>
     );
   } else if (caseLabels == null) {
     caseSelectorElem = <CircularProgress />;
@@ -399,45 +424,10 @@ const Decisions: React.FunctionComponent<{}> = (props) => {
   if (selectedCaseLabel == null) {
     caseSummaryElem = null;
   } else {
-    let summaryContent;
-    if (caseSummaryError) {
-      summaryContent = (
-        <p>Error loading case summary: {caseSummaryError.message}</p>
-      );
-    } else if (caseSummary == null) {
-      summaryContent = <CircularProgress />;
-    } else {
-      summaryContent = (
-        <React.Fragment>
-          <p>Number of variants: {caseSummary.nrVariants}</p>
-
-          <Table size="small">
-            <TableHead>
-              <TableRow>
-                <TableCell>Decision time (UTC)</TableCell>
-                <TableCell>Variant</TableCell>
-                <TableCell>Token</TableCell>
-              </TableRow>
-            </TableHead>
-            <TableBody>
-              {caseSummary.decisions.map((decisionSummary) => (
-                <TableRow key={decisionSummary.token}>
-                  <TableCell>{decisionSummary.decisionTimeUTC}</TableCell>
-                  <TableCell>{decisionSummary.variant}</TableCell>
-                  <TableCell>{decisionSummary.token}</TableCell>
-                </TableRow>
-              ))}
-            </TableBody>
-          </Table>
-        </React.Fragment>
-      );
-    }
-
     caseSummaryElem = (
       <Grid item xs={12}>
         <Paper className={classes.contentPaper}>
-          <Title>Case {selectedCaseLabel}</Title>
-          {summaryContent}
+          <FetchedCaseSummary caseLabel={selectedCaseLabel} />
         </Paper>
       </Grid>
     );
@@ -456,6 +446,86 @@ const Decisions: React.FunctionComponent<{}> = (props) => {
         {caseSummaryElem}
       </Grid>
     </Container>
+  );
+};
+
+interface FetchedCaseSummaryProps {
+  caseLabel: string;
+}
+
+const FetchedCaseSummary: React.FunctionComponent<FetchedCaseSummaryProps> = (
+  props
+) => {
+  const [error, setError] = React.useState<Error | null>(null);
+  const [caseSummary, setCaseSummary] = React.useState<CaseSummary | null>(
+    null
+  );
+
+  React.useEffect(() => {
+    const fetchData = async () => {
+      setCaseSummary(null);
+      setError(null);
+
+      try {
+        const res = await fetch(`/case/${props.caseLabel}`);
+        const resJson = await res.json();
+        setCaseSummary(resJson);
+      } catch (error) {
+        setError(error);
+      }
+    };
+    fetchData();
+  }, [props.caseLabel]);
+
+  let content;
+  if (error) {
+    content = (
+      <Alert severity="error">
+        Could not get case summary: {error.message}
+      </Alert>
+    );
+  } else if (caseSummary == null) {
+    content = <CircularProgress />;
+  } else {
+    content = <CaseSummary caseSummary={caseSummary} />;
+  }
+
+  return (
+    <React.Fragment>
+      <Title>Case {props.caseLabel}</Title>
+      {content}
+    </React.Fragment>
+  );
+};
+
+interface CaseSummaryProps {
+  caseSummary: CaseSummary;
+}
+
+const CaseSummary: React.FunctionComponent<CaseSummaryProps> = (props) => {
+  return (
+    <React.Fragment>
+      <p>Number of variants: {props.caseSummary.nrVariants}</p>
+
+      <Table size="small">
+        <TableHead>
+          <TableRow>
+            <TableCell>Decision time (UTC)</TableCell>
+            <TableCell>Variant</TableCell>
+            <TableCell>Token</TableCell>
+          </TableRow>
+        </TableHead>
+        <TableBody>
+          {props.caseSummary.decisions.map((decisionSummary) => (
+            <TableRow key={decisionSummary.token}>
+              <TableCell>{decisionSummary.decisionTimeUTC}</TableCell>
+              <TableCell>{decisionSummary.variant}</TableCell>
+              <TableCell>{decisionSummary.token}</TableCell>
+            </TableRow>
+          ))}
+        </TableBody>
+      </Table>
+    </React.Fragment>
   );
 };
 
