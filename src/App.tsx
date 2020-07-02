@@ -35,25 +35,7 @@ import { Alert } from "@material-ui/lab";
 import MenuIcon from "@material-ui/icons/Menu";
 import FolderIcon from "@material-ui/icons/Folder";
 import AssignmentIcon from "@material-ui/icons/Assignment";
-
-// API.
-
-type DecisionToken = string;
-
-interface CaseSummary {
-  nextDecisionToken: DecisionToken;
-  label: string;
-  nrVariants: number;
-  decisions: Array<DecisionSummary>;
-}
-
-interface DecisionSummary {
-  token: DecisionToken;
-  decisionTimeUTC: string;
-  variant: number;
-}
-
-// /API.
+import {CaseLabel, CaseSummary, DecisionSummary} from "./Api"
 
 const drawerWidth = 240;
 
@@ -61,7 +43,7 @@ type Page = "cases" | "decisions";
 
 interface PageData {
   page: Page;
-  label: string;
+  label: CaseLabel;
   icon: JSX.Element;
 }
 
@@ -136,7 +118,7 @@ const useStyles = makeStyles((theme: Theme) =>
 const App: React.FunctionComponent<{}> = (props) => {
   const [mobileDrawerOpen, setMobileDrawerOpen] = React.useState(false);
   const [currentPage, setCurrentPage] = React.useState<Page>("cases");
-  const [currentCase, setCurrentCase] = React.useState<string | null>(null);
+  const [currentCase, setCurrentCase] = React.useState<CaseLabel | null>(null);
 
   const handleMobileDrawerToggle = () => {
     setMobileDrawerOpen(!mobileDrawerOpen);
@@ -218,21 +200,26 @@ const App: React.FunctionComponent<{}> = (props) => {
   );
 
   let page;
-  if (currentPage === "cases") {
-    page = (
-      <CasesScreen
-        onSelectCase={(caseLabel: string) => {
-          setCurrentCase(caseLabel);
-          setCurrentPage("decisions");
-        }}
-      />
-    );
-  } else if (currentPage === "decisions") {
-    page = (
-      <DecisionsScreen
-        currentCase={currentCase === null ? undefined : currentCase}
-      />
-    );
+  switch (currentPage) {
+    case "cases":
+      page = (
+        <CasesScreen
+          onSelectCase={(caseLabel: CaseLabel) => {
+            setCurrentCase(caseLabel);
+            setCurrentPage("decisions");
+          }}
+        />
+      );
+      break
+    case "decisions":
+      page = (
+        <DecisionsScreen
+          currentCase={currentCase === null ? undefined : currentCase}
+        />
+      );
+      break
+    default:
+      break
   }
 
   return (
@@ -249,7 +236,7 @@ const App: React.FunctionComponent<{}> = (props) => {
 };
 
 interface CasesScreenProps {
-  onSelectCase: (caseLabel: string) => void;
+  onSelectCase: (caseLabel: CaseLabel) => void;
 }
 
 const CasesScreen: React.FunctionComponent<CasesScreenProps> = (props) => {
@@ -308,7 +295,7 @@ const CasesScreen: React.FunctionComponent<CasesScreenProps> = (props) => {
 
 interface CaseSummariesProps {
   caseSummaries: Array<CaseSummary>;
-  onSelectCase: (caseLabel: string) => void;
+  onSelectCase: (caseLabel: CaseLabel) => void;
 }
 
 const CaseSummaries: React.FunctionComponent<CaseSummariesProps> = (props) => {
@@ -355,7 +342,7 @@ const CaseSummaries: React.FunctionComponent<CaseSummariesProps> = (props) => {
 };
 
 interface DecisionsScreenProps {
-  currentCase?: string;
+  currentCase?: CaseLabel;
 }
 
 const DecisionsScreen: React.FunctionComponent<DecisionsScreenProps> = (
@@ -364,17 +351,17 @@ const DecisionsScreen: React.FunctionComponent<DecisionsScreenProps> = (
   const [caseLabelsError, setCaseLabelsError] = React.useState<Error | null>(
     null
   );
-  const [caseLabels, setCaseLabels] = React.useState<Array<string> | null>(
+  const [caseLabels, setCaseLabels] = React.useState<Array<CaseLabel> | null>(
     null
   );
-  const [selectedCaseLabel, setCaseLabel] = React.useState<string | null>(
+  const [selectedCaseLabel, setCaseLabel] = React.useState<CaseLabel | null>(
     props.currentCase ? props.currentCase : null
   );
 
   const classes = useStyles();
 
   const handleSelectCase = (event: React.ChangeEvent<{ value: unknown }>) => {
-    setCaseLabel(event.target.value as string);
+    setCaseLabel(event.target.value as CaseLabel);
   };
 
   React.useEffect(() => {
@@ -420,19 +407,6 @@ const DecisionsScreen: React.FunctionComponent<DecisionsScreenProps> = (
     );
   }
 
-  let caseSummaryElem;
-  if (selectedCaseLabel == null) {
-    caseSummaryElem = null;
-  } else {
-    caseSummaryElem = (
-      <Grid item xs={12}>
-        <Paper className={classes.contentPaper}>
-          <FetchedCaseSummary caseLabel={selectedCaseLabel} />
-        </Paper>
-      </Grid>
-    );
-  }
-
   return (
     <Container maxWidth="lg" className={classes.container}>
       <Grid container spacing={3}>
@@ -443,14 +417,20 @@ const DecisionsScreen: React.FunctionComponent<DecisionsScreenProps> = (
           </Paper>
         </Grid>
 
-        {caseSummaryElem}
+        {selectedCaseLabel && (
+          <Grid item xs={12}>
+            <Paper className={classes.contentPaper}>
+              <FetchedCaseSummary caseLabel={selectedCaseLabel} />
+            </Paper>
+          </Grid>
+        )}
       </Grid>
     </Container>
   );
 };
 
 interface FetchedCaseSummaryProps {
-  caseLabel: string;
+  caseLabel: CaseLabel;
 }
 
 const FetchedCaseSummary: React.FunctionComponent<FetchedCaseSummaryProps> = (
@@ -487,7 +467,7 @@ const FetchedCaseSummary: React.FunctionComponent<FetchedCaseSummaryProps> = (
   } else if (caseSummary == null) {
     content = <CircularProgress />;
   } else {
-    content = <CaseSummary caseSummary={caseSummary} />;
+    content = <CaseSummaryComponent caseSummary={caseSummary} />;
   }
 
   return (
@@ -502,7 +482,7 @@ interface CaseSummaryProps {
   caseSummary: CaseSummary;
 }
 
-const CaseSummary: React.FunctionComponent<CaseSummaryProps> = (props) => {
+const CaseSummaryComponent: React.FunctionComponent<CaseSummaryProps> = (props) => {
   return (
     <React.Fragment>
       <p>Number of variants: {props.caseSummary.nrVariants}</p>
@@ -516,7 +496,7 @@ const CaseSummary: React.FunctionComponent<CaseSummaryProps> = (props) => {
           </TableRow>
         </TableHead>
         <TableBody>
-          {props.caseSummary.decisions.map((decisionSummary) => (
+          {props.caseSummary.decisions.map((decisionSummary: DecisionSummary) => (
             <TableRow key={decisionSummary.token}>
               <TableCell>{decisionSummary.decisionTimeUTC}</TableCell>
               <TableCell>{decisionSummary.variant}</TableCell>
