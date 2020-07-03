@@ -1,13 +1,9 @@
 import React from "react";
 import {
   NavLink as RouterLink,
-  LinkProps as RouterLinkProps
+  LinkProps as RouterLinkProps,
 } from "react-router-dom";
-import {
-  ListItem,
-  ListItemIcon,
-  ListItemText,
-} from "@material-ui/core";
+import { ListItem, ListItemIcon, ListItemText } from "@material-ui/core";
 
 export interface ListItemLinkProps {
   icon: React.ReactElement;
@@ -22,14 +18,10 @@ export function ListItemLink(props: ListItemLinkProps) {
 
   const renderLink = React.useMemo(
     () =>
-      React.forwardRef<any, Omit<RouterLinkProps, 'to'>>((itemProps, ref) => (
-        <RouterLink
-          to={to}
-          ref={ref}
-          {...itemProps}
-        />
+      React.forwardRef<any, Omit<RouterLinkProps, "to">>((itemProps, ref) => (
+        <RouterLink to={to} ref={ref} {...itemProps} />
       )),
-    [to],
+    [to]
   );
 
   return (

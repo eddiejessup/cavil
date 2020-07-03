@@ -1,10 +1,6 @@
 import React from "react";
-import {
-  Grid,
-  TextField,
-  Button,
-} from "@material-ui/core";
-import {CaseLabel} from "./Api"
+import { Grid, TextField, Button } from "@material-ui/core";
+import { CaseLabel } from "./Api";
 import { Alert } from "@material-ui/lab";
 
 interface FormInputData {
@@ -15,30 +11,33 @@ interface FormInputData {
 const initialFormInputData = {
   label: "",
   nrVariants: 2,
-}
+};
 
-interface NewCaseFormProps {
-}
+interface NewCaseFormProps {}
 
-export const NewCaseForm: React.FunctionComponent<NewCaseFormProps> = (props) => {
-  const [formError, setFormError] = React.useState<string | null>(null)
-  const [formData, setFormData] = React.useState<FormInputData>(initialFormInputData)
-  const [nrVariantsError, setNrVariantsError] = React.useState<boolean>(false)
+export const NewCaseForm: React.FunctionComponent<NewCaseFormProps> = (
+  props
+) => {
+  const [formError, setFormError] = React.useState<string | null>(null);
+  const [formData, setFormData] = React.useState<FormInputData>(
+    initialFormInputData
+  );
+  const [nrVariantsError, setNrVariantsError] = React.useState<boolean>(false);
 
   const onSubmit = async () => {
     if (formData.nrVariants != null) {
       try {
         const res = await fetch(`/case/${formData.label}`, {
-          method: 'PUT',
+          method: "PUT",
           headers: {
-            'Content-Type': 'application/json'
+            "Content-Type": "application/json",
           },
-          body: JSON.stringify({nrVariants: formData.nrVariants})
-        })
+          body: JSON.stringify({ nrVariants: formData.nrVariants }),
+        });
         if (res.status === 400) {
-          const errObj = await res.json()
-          console.log(res.status)
-          setFormError(`${errObj.errorType}: ${errObj.errorDetail}`)
+          const errObj = await res.json();
+          console.log(res.status);
+          setFormError(`${errObj.errorType}: ${errObj.errorDetail}`);
         } else if (res.status !== 200) {
           throw new Error("Unknown error");
         }
@@ -46,19 +45,17 @@ export const NewCaseForm: React.FunctionComponent<NewCaseFormProps> = (props) =>
         // Try to decode error as ClientError, and show it like that. Otherwise
         // show a fallback error message.
         try {
-          const errObj = await error.json()
+          const errObj = await error.json();
           setFormError(`${errObj.errorType}: ${errObj.errorDetail}`);
         } catch (error) {
-          setFormError("Something went wrong")
+          setFormError("Something went wrong");
         }
       }
     }
-  }
+  };
 
   return (
-    <form
-      onSubmit={onSubmit}
-    >
+    <form onSubmit={onSubmit}>
       <Grid
         container
         direction="row"
@@ -74,7 +71,10 @@ export const NewCaseForm: React.FunctionComponent<NewCaseFormProps> = (props) =>
             required
             value={formData.label}
             onChange={(event: React.ChangeEvent<HTMLInputElement>) => {
-              setFormData({...formData, label: event.target.value as CaseLabel})
+              setFormData({
+                ...formData,
+                label: event.target.value as CaseLabel,
+              });
             }}
           />
         </Grid>
@@ -90,12 +90,12 @@ export const NewCaseForm: React.FunctionComponent<NewCaseFormProps> = (props) =>
             required
             value={formData.nrVariants || ""}
             onChange={(event: React.ChangeEvent<HTMLInputElement>) => {
-              const nrVariants = parseInt(event.target.value)
-              setNrVariantsError(isNaN(nrVariants) || nrVariants < 2)
+              const nrVariants = parseInt(event.target.value);
+              setNrVariantsError(isNaN(nrVariants) || nrVariants < 2);
               setFormData({
                 ...formData,
                 nrVariants: isNaN(nrVariants) ? null : nrVariants,
-              })
+              });
             }}
           />
         </Grid>
@@ -111,12 +111,16 @@ export const NewCaseForm: React.FunctionComponent<NewCaseFormProps> = (props) =>
             variant="contained"
             color="primary"
             type="submit"
-            disabled={nrVariantsError || formData.nrVariants === null || formData.label === ""}
+            disabled={
+              nrVariantsError ||
+              formData.nrVariants === null ||
+              formData.label === ""
+            }
           >
             Create case
           </Button>
         </Grid>
       </Grid>
     </form>
-  )
-}
+  );
+};

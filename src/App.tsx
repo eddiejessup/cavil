@@ -17,9 +17,11 @@ import {
   Hidden,
 } from "@material-ui/core";
 import MenuIcon from "@material-ui/icons/Menu";
-import {useStyles} from "./Style"
-import {screenData, CasesScreen, CaseScreen} from "./Screens"
-import {ListItemLink} from "./ListItemLink"
+import { useStyles } from "./Style";
+import { screenData } from "./Screen";
+import { CasesScreen } from "./CasesScreen";
+import { CaseScreen } from "./CaseScreen";
+import { ListItemLink } from "./ListItemLink";
 
 export const App: React.FunctionComponent<{}> = (props) => {
   const [mobileDrawerOpen, setMobileDrawerOpen] = React.useState(false);
@@ -112,10 +114,10 @@ export const App: React.FunctionComponent<{}> = (props) => {
               <Redirect to="/cases" />
             </Route>
             <Route exact path="/cases">
-              <CasesScreen/>
+              <CasesScreen />
             </Route>
             <Route path="/cases/:caseLabel">
-              <CaseScreen/>
+              <CaseScreen />
             </Route>
           </Switch>
         </main>
