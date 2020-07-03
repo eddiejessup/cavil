@@ -10,17 +10,11 @@ import Cavil.Hashing
 import Cavil.Project
 import Data.Generics.Product.Typed
 import Data.Generics.Sum (AsType, injectTyped)
-import qualified Data.List as List
 import qualified Data.Time as T
 import qualified Data.Time.Format.ISO8601 as T
 import qualified Database.PostgreSQL.Simple as PG
 import Protolude hiding ((%))
-
-data DecideDomainError
-  deriving stock (Generic)
-
-data CreateCaseDomainError
-  deriving stock (Generic)
+import qualified Data.Map.Strict as Map
 
 aggIdFromCaseLabel :: CaseLabel -> AggregateID
 aggIdFromCaseLabel caseLabel =
@@ -71,15 +65,18 @@ summariseCase caseLabel = do
       { nextDecisionToken = nextDecisionTokenFromAgg agg,
         label = getTyped @CaseLabel agg,
         nrVariants = getTyped @NrVariants agg,
-        decisions = toDecisionSummary <$> getField @"decisions" agg
+        decisions = toDecisionSummary <$> Map.assocs (getField @"decisions" agg)
       }
 
-toDecisionSummary :: (DecisionToken, T.UTCTime, Variant) -> DecisionSummary
-toDecisionSummary (token, decisionTimeUTC, variant) =
+toDecisionSummary :: (DecisionToken, (T.UTCTime, Variant, IsDecisionValid)) -> DecisionSummary
+toDecisionSummary (token, (decisionTimeUTC, variant, isDecisionValid)) =
   DecisionSummary
     { token,
       decisionTimeUTC = toS $ T.iso8601Show decisionTimeUTC,
-      variant
+      variant,
+      isValid = case isDecisionValid of
+        DecisionIsValid -> True
+        DecisionIsNotValid -> False
     }
 
 decideCase ::
@@ -95,12 +92,7 @@ decideCase ::
   m Variant
 decideCase caseLabel reqDecisionToken = do
   (agg, valAggId) <- fetchCreatedAggByLabel caseLabel
-
-  let existingDecisions =
-        getTyped @[(DecisionToken, T.UTCTime, Variant)] agg <&> \(tok, _, var) -> (tok, var)
-      mayExistingDecisionVariant = List.lookup reqDecisionToken existingDecisions
-
-  case mayExistingDecisionVariant of
+  case Map.lookup reqDecisionToken (getField @"decisions" agg) of
     Nothing -> do
       nowTime <- liftIO T.getCurrentTime
       let decidedVariant = pickVariant reqDecisionToken (getTyped @NrVariants agg)
@@ -109,8 +101,25 @@ decideCase caseLabel reqDecisionToken = do
       void $ insertEventsValidated valAggId (Just agg) newEvts
 
       pure decidedVariant
-    Just existingDecision ->
+    Just (_, existingDecision, _) ->
       pure existingDecision
+
+invalidateDecision ::
+  ( MonadIO m,
+    MonadError e m,
+    AsType AggregateError e,
+    AsType WriteError e,
+    MonadReader r m,
+    HasType PG.Connection r
+  ) =>
+  CaseLabel ->
+  DecisionToken ->
+  Text ->
+  m ()
+invalidateDecision caseLabel reqDecisionToken invalidateReason = do
+  (agg, valAggId) <- fetchCreatedAggByLabel caseLabel
+  let newEvts = [DecisionInvalidated (DecisionInvalidatedEvent reqDecisionToken invalidateReason)]
+  void $ insertEventsValidated valAggId (Just agg) newEvts
 
 getAllCaseLabels ::
   (MonadIO m, MonadReader r m, HasType PG.Connection r) =>

@@ -26,3 +26,6 @@ pickVariant decisionToken nrVariants =
    in case mkVariant moduloInt of
         Nothing -> panic "impossible"
         Just v -> v
+
+initialDecisionSalt :: Text
+initialDecisionSalt = "OLQC1Q786FGq"

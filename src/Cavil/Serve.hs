@@ -24,7 +24,6 @@ import Servant.Server.Generic
 data CreateCaseError
   = CreateCaseAggregateError AggregateError
   | CreateCaseWriteError WriteError
-  | CreateCaseDomainError CreateCaseDomainError
   deriving stock (Generic)
 
 data CaseSummaryError
@@ -34,7 +33,11 @@ data CaseSummaryError
 data DecideError
   = DecideAggregateError AggregateError
   | DecideWriteError WriteError
-  | DecideDomainError DecideDomainError
+  deriving stock (Generic)
+
+data InvalidateDecisionError
+  = InvalidateDecisionAggregateError AggregateError
+  | InvalidateDecisionWriteError WriteError
   deriving stock (Generic)
 
 bsFromAeObject :: HM.HashMap Text Ae.Value -> BS.L.ByteString
@@ -49,8 +52,12 @@ mapAggregateError (AggregateError aggState detail) =
               "Multiple case creation events"
             NoSuchCase ->
               "Case events before case creation"
+            NoSuchDecision ->
+              "Decision events before decision creation"
             IncoherentDecisionToken ->
-              "Incoherent decision token events in chain"
+              "Incoherent tokens in decision chain"
+            DecisionAlreadyInvalidated ->
+              "Multiple invalidations of decision"
        in ClientError OurFault $
             mconcat
               [ "errorType" .= ("Invalid existing data" :: Text),
@@ -62,8 +69,12 @@ mapAggregateError (AggregateError aggState detail) =
               "Case already exists"
             NoSuchCase ->
               "No such case found"
+            NoSuchDecision ->
+              "No such decision found"
             IncoherentDecisionToken ->
               "Incoherent decision token"
+            DecisionAlreadyInvalidated ->
+              "Decision has already been invalidated"
        in ClientError BadRequest $
             mconcat
               [ "errorType" .= ("Bad request" :: Text),
@@ -115,15 +126,29 @@ caseSummarise caseLabel =
 caseDecide ::
   (MonadIO m, MonadReader AppEnv m, MonadError ServerError m) =>
   CaseLabel ->
-  DecisionRequest ->
+  DecisionToken ->
   m Variant
-caseDecide caseLabel dReq =
-  runExceptT (decideCase caseLabel (getTyped @DecisionToken dReq)) >>= \case
+caseDecide caseLabel tok =
+  runExceptT (decideCase caseLabel tok) >>= \case
     Left e ->
       throwError $ clientErrorAsServantError $ case e of
         DecideAggregateError aggE -> mapAggregateError aggE
         DecideWriteError we -> mapWriteError we
     Right v -> pure v
+
+caseDecisionInvalidate ::
+  (MonadIO m, MonadReader AppEnv m, MonadError ServerError m) =>
+  CaseLabel ->
+  DecisionToken ->
+  InvalidateDecisionRequest ->
+  m NoContent
+caseDecisionInvalidate caseLabel tok invalidateReq =
+  runExceptT (invalidateDecision caseLabel tok (getField @"reason" invalidateReq)) >>= \case
+    Left e ->
+      throwError $ clientErrorAsServantError $ case e of
+        InvalidateDecisionAggregateError aggE -> mapAggregateError aggE
+        InvalidateDecisionWriteError we -> mapWriteError we
+    Right () -> pure NoContent
 
 casesSummarise ::
   (MonadIO m, MonadReader AppEnv m) =>
@@ -142,6 +167,7 @@ record =
     { _caseCreate = caseCreate,
       _caseSummarise = caseSummarise,
       _caseDecide = caseDecide,
+      _caseDecisionInvalidate = caseDecisionInvalidate,
       _casesSummarise = casesSummarise
     }
 

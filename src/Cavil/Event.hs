@@ -21,15 +21,30 @@ import Database.PostgreSQL.Simple.SqlQQ
 import qualified Database.PostgreSQL.Simple.ToField as PG
 import Optics
 import Protolude hiding ((%), to)
+import qualified Data.Map.Strict as Map
 
+data IsDecisionValid
+  = DecisionIsValid
+  | DecisionIsNotValid
+
+type DecisionEntry = (UTCTime, Variant, IsDecisionValid)
+
+initialDecisionEntry :: DecisionMadeEvent -> (UTCTime, Variant, IsDecisionValid)
+initialDecisionEntry ev =
+  (getTyped @UTCTime ev, getTyped @Variant ev, DecisionIsValid)
+
+type DecisionsMap = Map DecisionToken DecisionEntry
+
+-- | Do not filter to only valid decisions, or the token chain will lose
+-- coherence.
 lastDecisionTime :: Aggregate -> Maybe UTCTime
 lastDecisionTime agg =
-  (\(_, t, _) -> t) <$> lastMay (getTyped @[(DecisionToken, UTCTime, Variant)] agg)
+  maximumMay $ (\(time, _, _) -> time) <$> Map.elems (getTyped @DecisionsMap agg)
 
 computeNextDecisionToken :: CaseLabel -> Maybe UTCTime -> DecisionToken
 computeNextDecisionToken caseLabel mayLastDecisionTime =
   let caseLabelTxt = caseLabel ^. typed @Text
-      mayLastDecisionTimeTxt = maybe mempty (Tx.pack . T.iso8601Show) mayLastDecisionTime
+      mayLastDecisionTimeTxt = maybe initialDecisionSalt (Tx.pack . T.iso8601Show) mayLastDecisionTime
    in DecisionToken $ uuidFromArbitraryText (caseLabelTxt <> mayLastDecisionTimeTxt)
 
 nextDecisionTokenFromAgg :: Aggregate -> DecisionToken
@@ -46,22 +61,28 @@ foldEventIntoAggregate :: (MonadError e m, AsType AggregateError e) => Aggregate
 foldEventIntoAggregate aggState mayAgg = \case
   CaseCreated ccEvt -> case mayAgg of
     Nothing ->
-      pure $ Just $ Aggregate (ccEvt ^. typed @CaseLabel) (ccEvt ^. typed @NrVariants) []
+      pure $ Just $ Aggregate (ccEvt ^. typed @CaseLabel) (ccEvt ^. typed @NrVariants) Map.empty
     Just _ ->
-      throwAggError CaseAlreadyExists
-  DecisionMade ev -> case mayAgg of
-    Nothing ->
-      throwAggError NoSuchCase
-    Just agg
-      | nextDecisionTokenFromAgg agg == ev ^. typed @DecisionToken ->
-        pure $ Just $
-          agg
-            & typed @[(DecisionToken, UTCTime, Variant)] %~ (<> [(getTyped @DecisionToken ev, getTyped @UTCTime ev, getTyped @Variant ev)])
-      | otherwise ->
-        throwAggError IncoherentDecisionToken
+      throwError $ aggError CaseAlreadyExists
+  DecisionMade ev -> do
+    agg <- note (aggError NoSuchCase) mayAgg
+    if nextDecisionTokenFromAgg agg == ev ^. typed @DecisionToken
+      then
+        pure $ Just $ agg & typed @DecisionsMap %~ Map.insert (getTyped @DecisionToken ev) (initialDecisionEntry ev)
+      else
+        throwError $ aggError IncoherentDecisionToken
+  DecisionInvalidated ev -> do
+    let tok = getTyped @DecisionToken ev
+    agg <- note (aggError NoSuchCase) mayAgg
+    decisionEntry <- note (aggError NoSuchDecision) (Map.lookup tok (getTyped @DecisionsMap agg))
+    case getTyped @IsDecisionValid decisionEntry of
+      DecisionIsNotValid ->
+        throwError $ aggError DecisionAlreadyInvalidated
+      DecisionIsValid ->
+        pure $ Just $ agg & typed @DecisionsMap % ix tok % typed @IsDecisionValid .~ DecisionIsNotValid
   where
-    throwAggError e =
-      throwError $ injectTyped $ AggregateError aggState e
+    aggError e =
+      injectTyped $ AggregateError aggState e
 
 getAggregate ::
   (MonadIO m, MonadError e m, AsType AggregateError e, MonadReader r m, HasType PG.Connection r) =>
@@ -149,6 +170,7 @@ insertEvents valAggId evts = do
 data CaseEvent
   = CaseCreated CaseCreatedEvent
   | DecisionMade DecisionMadeEvent
+  | DecisionInvalidated DecisionInvalidatedEvent
   deriving stock (Generic)
   deriving anyclass (Ae.ToJSON, Ae.FromJSON)
 
@@ -173,10 +195,17 @@ data DecisionMadeEvent = DecisionMadeEvent
   deriving stock (Generic)
   deriving anyclass (Ae.ToJSON, Ae.FromJSON)
 
+data DecisionInvalidatedEvent = DecisionInvalidatedEvent
+  { decisionToken :: DecisionToken,
+    reason :: Text
+  }
+  deriving stock (Generic)
+  deriving anyclass (Ae.ToJSON, Ae.FromJSON)
+
 data Aggregate = Aggregate
   { caseLabel :: CaseLabel,
     nrVariants :: NrVariants,
-    decisions :: [(DecisionToken, UTCTime, Variant)]
+    decisions :: DecisionsMap
   }
   deriving stock (Generic)
 
@@ -203,7 +232,9 @@ data AggregateError
 data AggregateErrorDetail
   = CaseAlreadyExists
   | NoSuchCase
+  | NoSuchDecision
   | IncoherentDecisionToken
+  | DecisionAlreadyInvalidated
   deriving stock (Generic, Show)
 
 data WriteError

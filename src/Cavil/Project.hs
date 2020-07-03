@@ -14,3 +14,4 @@ caseLabelsFromEvents = foldl' go []
     go caseLabels = \case
       CaseCreated ccEvt -> caseLabels <> [ccEvt ^. typed @CaseLabel]
       DecisionMade _ -> caseLabels
+      DecisionInvalidated _ -> caseLabels

@@ -40,6 +40,7 @@ dependencies:
   - wai-extra
   - warp
   - unordered-containers
+  - containers
 
 library:
   source-dirs: src

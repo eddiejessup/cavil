@@ -39,6 +39,7 @@ library
     , base
     , binary
     , bytestring
+    , containers
     , cryptohash-sha256
     , data-default
     , generic-optics
@@ -71,6 +72,7 @@ executable app
     , binary
     , bytestring
     , cavil
+    , containers
     , cryptohash-sha256
     , data-default
     , generic-optics

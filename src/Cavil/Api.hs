@@ -15,7 +15,8 @@ import Servant.API.Generic
 data Routes route = Routes
   { _caseCreate :: route :- "case" :> Capture "label" CaseLabel :> ReqBody '[JSON] CreateCaseRequest :> Put '[JSON] NoContent,
     _caseSummarise :: route :- "case" :> Capture "label" CaseLabel :> Get '[JSON] CaseSummary,
-    _caseDecide :: route :- "case" :> Capture "label" CaseLabel :> ReqBody '[JSON] DecisionRequest :> Post '[JSON] Variant,
+    _caseDecide :: route :- "case" :> Capture "label" CaseLabel :> Capture "decisionToken" DecisionToken :> Put '[JSON] Variant,
+    _caseDecisionInvalidate :: route :- "case" :> Capture "label" CaseLabel :> Capture "decisionToken" DecisionToken :> "invalidate" :> ReqBody '[JSON] InvalidateDecisionRequest :> Post '[JSON] NoContent,
     _casesSummarise :: route :- "case" :> Get '[JSON] [MultipackCaseSummary]
   }
   deriving stock (Generic)
@@ -64,7 +65,8 @@ mkNrVariants n
 
 newtype DecisionToken = DecisionToken UUID
   deriving stock (Generic)
-  deriving newtype (Ae.ToJSON, Ae.FromJSON, Eq)
+  deriving newtype (Ae.ToJSON, Ae.FromJSON, Eq, FromHttpApiData)
+  deriving newtype (Ord) -- For use in a Map
 
 newtype CaseLabel = CaseLabel Text
   deriving stock (Generic, Show)
@@ -79,8 +81,8 @@ data CreateCaseRequest = CreateCaseRequest
   deriving stock (Generic)
   deriving anyclass (Ae.FromJSON)
 
-data DecisionRequest = DecisionRequest
-  { decisionToken :: DecisionToken
+data InvalidateDecisionRequest = InvalidateDecisionRequest
+  { reason :: Text
   }
   deriving stock (Generic)
   deriving anyclass (Ae.FromJSON)
@@ -118,7 +120,8 @@ instance Ae.ToJSON MultipackCaseSummary where
 data DecisionSummary = DecisionSummary
   { token :: DecisionToken,
     decisionTimeUTC :: Text,
-    variant :: Variant
+    variant :: Variant,
+    isValid :: Bool
   }
   deriving stock (Generic)
   deriving anyclass (Ae.ToJSON)
