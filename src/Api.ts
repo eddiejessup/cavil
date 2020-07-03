@@ -14,3 +14,8 @@ export interface DecisionSummary {
   decisionTimeUTC: string;
   variant: number;
 }
+
+export interface ClientError {
+  errorType: string;
+  errorDetail: string;
+}
