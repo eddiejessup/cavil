@@ -2,6 +2,7 @@ import React from "react";
 import { Grid, TextField, Button } from "@material-ui/core";
 import { CaseLabel } from "./Api";
 import { Alert } from "@material-ui/lab";
+import {cavilFetch} from "./Common"
 
 interface FormInputData {
   label: CaseLabel;
@@ -24,33 +25,28 @@ export const NewCaseForm: React.FunctionComponent<NewCaseFormProps> = (
   );
   const [nrVariantsError, setNrVariantsError] = React.useState<boolean>(false);
 
-  const onSubmit = async () => {
-    if (formData.nrVariants != null) {
-      try {
-        const res = await fetch(`/case/${formData.label}`, {
+  const onSubmit = async (event: React.FormEvent<HTMLFormElement>) => {
+    // Don't automatically reload on submit.
+    event.preventDefault()
+    if (formData.nrVariants === null) {
+      setFormError("Please enter a number of variants")
+    } else {
+      await cavilFetch({
+        url: `/case/${formData.label}`,
+        payload: { nrVariants: formData.nrVariants },
+        fetchOpts: {
           method: "PUT",
-          headers: {
-            "Content-Type": "application/json",
-          },
-          body: JSON.stringify({ nrVariants: formData.nrVariants }),
-        });
-        if (res.status === 400) {
-          const errObj = await res.json();
-          console.log(res.status);
-          setFormError(`${errObj.errorType}: ${errObj.errorDetail}`);
-        } else if (res.status !== 200) {
-          throw new Error("Unknown error");
-        }
-      } catch (error) {
-        // Try to decode error as ClientError, and show it like that. Otherwise
-        // show a fallback error message.
-        try {
-          const errObj = await error.json();
-          setFormError(`${errObj.errorType}: ${errObj.errorDetail}`);
-        } catch (error) {
-          setFormError("Something went wrong");
-        }
-      }
+        },
+        onNiceError: (_, errObj) => {
+          setFormError(`${errObj.errorType}: ${errObj.errorDetail}`)
+        },
+        on200: () => {
+          window.location.reload()
+        },
+        onUglyError: (err) => {
+          setFormError("Something went wrong")
+        },
+      })
     }
   };
 

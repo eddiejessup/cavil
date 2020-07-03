@@ -19,3 +19,7 @@ export interface ClientError {
   errorType: string;
   errorDetail: string;
 }
+
+export const renderClientError = (err: ClientError) => (
+  `${err.errorType}: ${err.errorDetail}`
+)
