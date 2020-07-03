@@ -3,6 +3,7 @@ import {
   BrowserRouter as Router,
   Switch,
   Route,
+  Redirect,
 } from "react-router-dom";
 import {
   CssBaseline,
@@ -107,11 +108,14 @@ export const App: React.FunctionComponent<{}> = (props) => {
         <main className={classes.content}>
           <div className={classes.toolbar} />
           <Switch>
+            <Route exact path="/">
+              <Redirect to="/cases" />
+            </Route>
+            <Route exact path="/cases">
+              <CasesScreen/>
+            </Route>
             <Route path="/cases/:caseLabel">
               <CaseScreen/>
-            </Route>
-            <Route path="/cases">
-              <CasesScreen/>
             </Route>
           </Switch>
         </main>
