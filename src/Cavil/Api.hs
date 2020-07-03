@@ -90,7 +90,7 @@ data DecisionRequest = DecisionRequest
 -- Response interfaces.
 data CaseSummary = CaseSummary
   { nextDecisionToken :: DecisionToken,
-    caseLabel :: CaseLabel,
+    label :: CaseLabel,
     nrVariants :: NrVariants,
     decisions :: [DecisionSummary]
   }

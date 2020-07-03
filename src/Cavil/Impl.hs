@@ -69,7 +69,7 @@ summariseCase caseLabel = do
   pure $
     CaseSummary
       { nextDecisionToken = nextDecisionTokenFromAgg agg,
-        caseLabel = getTyped @CaseLabel agg,
+        label = getTyped @CaseLabel agg,
         nrVariants = getTyped @NrVariants agg,
         decisions = toDecisionSummary <$> getField @"decisions" agg
       }
