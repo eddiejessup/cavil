@@ -29,6 +29,7 @@ interface ScreenData {
   screen: Screen;
   label: CaseLabel;
   icon: JSX.Element;
+  path: string;
 }
 
 export const screenData: Array<ScreenData> = [
@@ -36,11 +37,13 @@ export const screenData: Array<ScreenData> = [
     screen: "cases",
     label: "Cases",
     icon: <FolderIcon />,
+    path: 'cases'
   },
   {
     screen: "decisions",
     label: "Decisions",
     icon: <AssignmentIcon />,
+    path: 'decisions'
   },
 ];
 

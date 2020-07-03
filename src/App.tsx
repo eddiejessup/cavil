@@ -1,5 +1,10 @@
 import React from "react";
 import {
+  BrowserRouter as Router,
+  Switch,
+  Route,
+} from "react-router-dom";
+import {
   CssBaseline,
   AppBar,
   Toolbar,
@@ -8,15 +13,13 @@ import {
   Drawer,
   Divider,
   List,
-  ListItem,
-  ListItemIcon,
-  ListItemText,
   Hidden,
 } from "@material-ui/core";
 import MenuIcon from "@material-ui/icons/Menu";
 import {CaseLabel} from "./Api"
 import {useStyles} from "./Style"
 import {Screen, screenData, CasesScreen, DecisionsScreen} from "./Screens"
+import {ListItemLink} from "./ListItemLink"
 
 export const App: React.FunctionComponent<{}> = (props) => {
   const [mobileDrawerOpen, setMobileDrawerOpen] = React.useState(false);
@@ -53,16 +56,15 @@ export const App: React.FunctionComponent<{}> = (props) => {
       <div className={classes.toolbar} />
       <Divider />
       <List>
-        {screenData.map(({ screen, label, icon }) => (
-          <ListItem
-            button
+        {screenData.map(({ screen, label, icon, path }) => (
+          <ListItemLink
+            to={`/${path}`}
             key={screen}
             selected={screen === currentScreen}
             onClick={() => setCurrentScreen(screen)}
-          >
-            <ListItemIcon>{icon}</ListItemIcon>
-            <ListItemText primary={label} />
-          </ListItem>
+            icon={icon}
+            primary={label}
+          />
         ))}
       </List>
       <Divider />
@@ -101,38 +103,31 @@ export const App: React.FunctionComponent<{}> = (props) => {
     </nav>
   );
 
-  let screen;
-  switch (currentScreen) {
-    case "cases":
-      screen = (
-        <CasesScreen
-          onSelectCase={(caseLabel: CaseLabel) => {
-            setCurrentCase(caseLabel);
-            setCurrentScreen("decisions");
-          }}
-        />
-      );
-      break
-    case "decisions":
-      screen = (
-        <DecisionsScreen
-          currentCase={currentCase === null ? undefined : currentCase}
-        />
-      );
-      break
-    default:
-      break
-  }
-
   return (
-    <div className={classes.root}>
-      <CssBaseline />
-      {appBar}
-      {navDrawer}
-      <main className={classes.content}>
-        <div className={classes.toolbar} />
-        {screen}
-      </main>
-    </div>
+    <Router>
+      <div className={classes.root}>
+        <CssBaseline />
+        {appBar}
+        {navDrawer}
+        <main className={classes.content}>
+          <div className={classes.toolbar} />
+          <Switch>
+            <Route path="/cases">
+              <CasesScreen
+                onSelectCase={(caseLabel: CaseLabel) => {
+                  setCurrentCase(caseLabel);
+                  setCurrentScreen("decisions");
+                }}
+              />
+            </Route>
+            <Route path="/decisions">
+              <DecisionsScreen
+                currentCase={currentCase === null ? undefined : currentCase}
+              />
+            </Route>
+          </Switch>
+        </main>
+      </div>
+    </Router>
   );
 };

@@ -4,7 +4,7 @@ import {
   TextField,
   Button,
 } from "@material-ui/core";
-import {CaseLabel, ClientError} from "./Api"
+import {CaseLabel} from "./Api"
 import { Alert } from "@material-ui/lab";
 
 interface FormInputData {
@@ -25,8 +25,6 @@ export const NewCaseForm: React.FunctionComponent<NewCaseFormProps> = (props) =>
   const [formData, setFormData] = React.useState<FormInputData>(initialFormInputData)
   const [nrVariantsError, setNrVariantsError] = React.useState<boolean>(false)
 
-  const setFallBackError = () => setFormError("Something went wrong")
-
   const onSubmit = async () => {
     if (formData.nrVariants != null) {
       try {
@@ -42,14 +40,16 @@ export const NewCaseForm: React.FunctionComponent<NewCaseFormProps> = (props) =>
           console.log(res.status)
           setFormError(`${errObj.errorType}: ${errObj.errorDetail}`)
         } else if (res.status !== 200) {
-          throw "Unknown error";
+          throw new Error("Unknown error");
         }
       } catch (error) {
+        // Try to decode error as ClientError, and show it like that. Otherwise
+        // show a fallback error message.
         try {
           const errObj = await error.json()
           setFormError(`${errObj.errorType}: ${errObj.errorDetail}`);
         } catch (error) {
-          setFallBackError()
+          setFormError("Something went wrong")
         }
       }
     }
@@ -111,7 +111,7 @@ export const NewCaseForm: React.FunctionComponent<NewCaseFormProps> = (props) =>
             variant="contained"
             color="primary"
             type="submit"
-            disabled={nrVariantsError || formData.nrVariants == null || formData.label == ""}
+            disabled={nrVariantsError || formData.nrVariants === null || formData.label === ""}
           >
             Create case
           </Button>
