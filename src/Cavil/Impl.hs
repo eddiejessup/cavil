@@ -60,13 +60,24 @@ summariseCase ::
   m CaseSummary
 summariseCase caseLabel = do
   (agg, _) <- fetchCreatedAggByLabel caseLabel
+
+  let
+    decisions = toDecisionSummary
+      <$> sortBy cmpDecisionTime (Map.assocs (getField @"decisions" agg))
+
   pure $
     CaseSummary
       { nextDecisionToken = nextDecisionTokenFromAgg agg,
         label = getTyped @CaseLabel agg,
         nrVariants = getTyped @NrVariants agg,
-        decisions = toDecisionSummary <$> Map.assocs (getField @"decisions" agg)
+        decisions
       }
+  where
+    cmpDecisionTime ::
+      (DecisionToken, (T.UTCTime, Variant, IsDecisionValid)) ->
+      (DecisionToken, (T.UTCTime, Variant, IsDecisionValid)) ->
+      Ordering
+    cmpDecisionTime (_, (a, _, _)) (_, (b, _, _)) = a `compare` b
 
 toDecisionSummary :: (DecisionToken, (T.UTCTime, Variant, IsDecisionValid)) -> DecisionSummary
 toDecisionSummary (token, (decisionTimeUTC, variant, isDecisionValid)) =
