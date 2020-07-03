@@ -1,6 +1,10 @@
+// Types.
+
 export type CaseLabel = string;
 
 export type DecisionToken = string;
+
+export type Variant = number;
 
 export interface CaseSummary {
   nextDecisionToken: DecisionToken;
@@ -13,6 +17,7 @@ export interface DecisionSummary {
   token: DecisionToken;
   decisionTimeUTC: string;
   variant: number;
+  isValid: boolean
 }
 
 export interface ClientError {
@@ -23,3 +28,111 @@ export interface ClientError {
 export const renderClientError = (err: ClientError) => (
   `${err.errorType}: ${err.errorDetail}`
 )
+
+export const fallBackErrorMsg = "Something went wrong"
+
+// Operations.
+
+export const caseCreate = async (
+  caseLabel: CaseLabel,
+  nrVariants: number,
+  onSuccess: () => void,
+  onClientError: (err: ClientError) => void
+) => (
+  await fetchCavil(
+    `/case/${caseLabel}`,
+    {bodyObj: {nrVariants}, method: "PUT"},
+    onSuccess,
+    onClientError,
+  )
+)
+
+export const caseSummarise = async (
+  caseLabel: CaseLabel,
+  onSuccess: (v: CaseSummary) => void,
+  onClientError: (err: ClientError) => void
+) => (
+  await fetchCavil(
+    `/case/${caseLabel}`,
+    {},
+    async (res) => {
+      const caseSummary = await res.json()
+      onSuccess(caseSummary)
+    },
+    onClientError,
+  )
+)
+
+export const caseDecide = async (
+  caseLabel: CaseLabel,
+  decisionToken: DecisionToken,
+  onSuccess: (v: Variant) => void,
+  onClientError: (err: ClientError) => void
+) => (
+  await fetchCavil(
+    `/case/${caseLabel}/${decisionToken}`,
+    {method: "PUT"},
+    async (res) => {
+      const variant = await res.json()
+      onSuccess(variant)
+    },
+    onClientError,
+  )
+)
+
+export const casesSummarise = async (
+  onSuccess: (v: Array<CaseSummary>) => void,
+  onClientError: (err: ClientError) => void
+) => {
+  await fetchCavil(
+    "/case",
+    {},
+    async (res) => {
+      const caseSummaries = await res.json()
+      onSuccess(caseSummaries)
+    },
+    onClientError,
+  )
+}
+
+// Helpers.
+
+interface FetchJSON {
+  bodyObj?: any,
+  method?: string,
+}
+
+const fetchJSON = async(url: string, opts: FetchJSON) => (
+  fetch(url, {
+      ...opts,
+      headers: {"Content-Type": "application/json"},
+      body: opts.bodyObj === undefined ? undefined : JSON.stringify(opts.bodyObj),
+  })
+)
+
+const fetchCavil = async (
+  url: string,
+  opts: FetchJSON,
+  onSuccess: (res: any) => void,
+  onClientError: (err: ClientError) => void,
+) => {
+  try {
+    const res = await fetchJSON(url, opts)
+    if (res.status === 200) {
+      onSuccess(res);
+    } else if (res.status === 400) {
+      const errObj = await res.json();
+      onClientError(errObj)
+    } else {
+      throw new Error("Unknown error");
+    }
+  } catch (error) {
+    // Try to decode error as ClientError, and handle that. Otherwise throw.
+    try {
+      const errObj = await error.json();
+      onClientError(errObj);
+    } catch (_) {
+      throw error;
+    }
+  }
+}

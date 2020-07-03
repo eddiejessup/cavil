@@ -1,8 +1,7 @@
 import React from "react";
 import { Grid, TextField, Button } from "@material-ui/core";
-import { CaseLabel } from "./Api";
+import { CaseLabel, fallBackErrorMsg, renderClientError, caseCreate } from "./Api";
 import { Alert } from "@material-ui/lab";
-import {cavilFetch} from "./Common"
 
 interface FormInputData {
   label: CaseLabel;
@@ -31,22 +30,18 @@ export const NewCaseForm: React.FunctionComponent<NewCaseFormProps> = (
     if (formData.nrVariants === null) {
       setFormError("Please enter a number of variants")
     } else {
-      await cavilFetch({
-        url: `/case/${formData.label}`,
-        payload: { nrVariants: formData.nrVariants },
-        fetchOpts: {
-          method: "PUT",
-        },
-        onNiceError: (_, errObj) => {
-          setFormError(`${errObj.errorType}: ${errObj.errorDetail}`)
-        },
-        on200: () => {
-          window.location.reload()
-        },
-        onUglyError: (err) => {
-          setFormError("Something went wrong")
-        },
-      })
+      try {
+        await caseCreate(
+          formData.label,
+          formData.nrVariants,
+          () => window.location.reload(),
+          (errObj) => {
+            setFormError(renderClientError(errObj))
+          },
+        )
+      } catch (error) {
+        setFormError(fallBackErrorMsg)
+      }
     }
   };
 

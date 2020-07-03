@@ -12,7 +12,7 @@ import {
   Link as MaterialLink,
 } from "@material-ui/core";
 import { Alert } from "@material-ui/lab";
-import { CaseSummary } from "./Api";
+import { CaseSummary, ClientError, renderClientError, fallBackErrorMsg, casesSummarise } from "./Api";
 import { NewCaseForm } from "./NewCase";
 import { useStyles } from "./Style";
 import { Title } from "./Common";
@@ -23,7 +23,7 @@ interface CasesScreenProps {}
 export const CasesScreen: React.FunctionComponent<CasesScreenProps> = (
   props
 ) => {
-  const [error, setError] = React.useState<Error | null>(null);
+  const [error, setError] = React.useState<string | null>(null);
   const [caseSummaries, setCaseSummaries] = React.useState<Array<
     CaseSummary
   > | null>(null);
@@ -33,15 +33,20 @@ export const CasesScreen: React.FunctionComponent<CasesScreenProps> = (
   React.useEffect(() => {
     const fetchData = async () => {
       try {
-        const res = await fetch("/case");
-        const resJson = await res.json();
-        setCaseSummaries(resJson);
+        await casesSummarise(
+          (caseSumaries) => {
+            setCaseSummaries(caseSumaries);
+          },
+          (err: ClientError) => {
+            setError(renderClientError(err));
+          },
+        )
       } catch (error) {
-        setError(error);
+        setError(fallBackErrorMsg);
       }
     };
     fetchData();
-  }, []);
+}, []);
 
   return (
     <Container maxWidth="lg" className={classes.container}>
@@ -51,12 +56,12 @@ export const CasesScreen: React.FunctionComponent<CasesScreenProps> = (
             <Title>Cases</Title>
             {error && (
               <Alert severity="error">
-                Could not get cases: {error.message}
+                Couldn't get cases: {error}
               </Alert>
             )}
 
             {caseSummaries === null ? (
-              <CircularProgress />
+              error ? null : <CircularProgress />
             ) : (
               <CaseSummaries caseSummaries={caseSummaries} />
             )}

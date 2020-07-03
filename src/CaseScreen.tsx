@@ -13,10 +13,10 @@ import {
   Button,
 } from "@material-ui/core";
 import { Alert } from "@material-ui/lab";
-import CategoryIcon from "@material-ui/icons/Category";
-import { CaseSummary, DecisionSummary, ClientError, renderClientError } from "./Api";
+import FormatListNumberedIcon from '@material-ui/icons/FormatListNumbered';
+import { CaseSummary, DecisionSummary, ClientError, renderClientError, fallBackErrorMsg, caseSummarise, caseDecide } from "./Api";
 import { useStyles } from "./Style";
-import { Title, SubTitle, cavilFetch, fallBackErrorMsg } from "./Common";
+import { Title, SubTitle } from "./Common";
 import { useParams } from "react-router-dom";
 
 interface CaseScreenProps {}
@@ -25,7 +25,7 @@ export const CaseScreen: React.FunctionComponent<CaseScreenProps> = (props) => {
   const { caseLabel } = useParams();
   const classes = useStyles();
 
-  const [error, setError] = React.useState<Error | null>(null);
+  const [error, setError] = React.useState<string | null>(null);
   const [caseSummary, setCaseSummary] = React.useState<CaseSummary | null>(
     null
   );
@@ -36,13 +36,18 @@ export const CaseScreen: React.FunctionComponent<CaseScreenProps> = (props) => {
       setError(null);
 
       try {
-        const res = await fetch(`/case/${caseLabel}`);
-        const resJson = await res.json();
-        setCaseSummary(resJson);
+        await caseSummarise(
+          caseLabel,
+          setCaseSummary,
+          (errObj: ClientError) => {
+            setError(renderClientError(errObj))
+          },
+        )
       } catch (error) {
-        setError(error);
+        setError(fallBackErrorMsg);
       }
     };
+
     fetchData();
   }, [caseLabel]);
 
@@ -60,7 +65,7 @@ export const CaseScreen: React.FunctionComponent<CaseScreenProps> = (props) => {
               {caseSummary && (
                 <Grid item>
                   <Chip
-                    icon={<CategoryIcon />}
+                    icon={<FormatListNumberedIcon />}
                     label={`${caseSummary.nrVariants} variants`}
                     color="primary"
                     size="small"
@@ -74,7 +79,7 @@ export const CaseScreen: React.FunctionComponent<CaseScreenProps> = (props) => {
         {error && (
           <Grid item xs={12}>
             <Alert severity="error">
-              Could not get case summary: {error.message}
+              Couldn't get case summary: {error}
             </Alert>
           </Grid>
         )}
@@ -156,22 +161,20 @@ const NewDecision: React.FunctionComponent<NewDecisionProps> = ({caseSummary}) =
     if (caseSummary === undefined) {
       setError("No case information available")
     } else {
-      await cavilFetch({
-        url: `/case/${caseSummary.label}`,
-        payload: { decisionToken: caseSummary.nextDecisionToken },
-        fetchOpts: {
-          method: "POST",
-        },
-        onNiceError: (_, errObj: ClientError) => {
-          setError(renderClientError(errObj))
-        },
-        on200: () => {
-          window.location.reload()
-        },
-        onUglyError: (err) => {
-          setError(fallBackErrorMsg)
-        },
-      })
+      try {
+        await caseDecide(
+          caseSummary.label,
+          caseSummary.nextDecisionToken,
+          (_var) => {
+            window.location.reload()
+          },
+          (errObj: ClientError) => {
+            setError(renderClientError(errObj))
+          },
+        )
+      } catch (error) {
+        setError(fallBackErrorMsg)
+      }
     }
   }
 
