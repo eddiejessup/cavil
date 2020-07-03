@@ -8,20 +8,20 @@ import {
   TableRow,
   TableCell,
   TableBody,
-  FormControl,
-  InputLabel,
-  Select,
-  MenuItem,
   CircularProgress,
-  Link,
+  Link as MaterialLink,
 } from "@material-ui/core";
 import { Alert } from "@material-ui/lab";
 import FolderIcon from "@material-ui/icons/Folder";
-import AssignmentIcon from "@material-ui/icons/Assignment";
 import {CaseLabel, CaseSummary, DecisionSummary} from "./Api"
 import {NewCaseForm} from "./NewCase"
 import {useStyles} from "./Style"
 import {Title} from "./Common"
+import {
+  Link as RouterLink,
+  useRouteMatch,
+  useParams,
+} from "react-router-dom";
 
 export type Screen = "cases" | "decisions";
 
@@ -39,16 +39,9 @@ export const screenData: Array<ScreenData> = [
     icon: <FolderIcon />,
     path: 'cases'
   },
-  {
-    screen: "decisions",
-    label: "Decisions",
-    icon: <AssignmentIcon />,
-    path: 'decisions'
-  },
 ];
 
 interface CasesScreenProps {
-  onSelectCase: (caseLabel: CaseLabel) => void;
 }
 
 export const CasesScreen: React.FunctionComponent<CasesScreenProps> = (props) => {
@@ -89,7 +82,6 @@ export const CasesScreen: React.FunctionComponent<CasesScreenProps> = (props) =>
               <CircularProgress /> :
               <CaseSummaries
                 caseSummaries={caseSummaries}
-                onSelectCase={props.onSelectCase}
               />
             }
 
@@ -109,10 +101,11 @@ export const CasesScreen: React.FunctionComponent<CasesScreenProps> = (props) =>
 
 interface CaseSummariesProps {
   caseSummaries: Array<CaseSummary>;
-  onSelectCase: (caseLabel: CaseLabel) => void;
 }
 
 const CaseSummaries: React.FunctionComponent<CaseSummariesProps> = (props) => {
+  const {url} = useRouteMatch();
+
   return (
     <Table size="small">
       <TableHead>
@@ -132,14 +125,12 @@ const CaseSummaries: React.FunctionComponent<CaseSummariesProps> = (props) => {
           return (
             <TableRow key={caseSummary.label}>
               <TableCell>
-                <Link
-                  href="#"
-                  onClick={() => {
-                    props.onSelectCase(caseSummary.label);
-                  }}
+                <MaterialLink
+                  component={RouterLink}
+                  to={`${url}/${caseSummary.label}`}
                 >
                   {caseSummary.label}
-                </Link>
+                </MaterialLink>
               </TableCell>
               <TableCell>{caseSummary.nrVariants}</TableCell>
               <TableCell>{nrDecisions}</TableCell>
@@ -155,82 +146,22 @@ const CaseSummaries: React.FunctionComponent<CaseSummariesProps> = (props) => {
   );
 };
 
-interface DecisionsScreenProps {
-  currentCase?: CaseLabel;
+interface CaseScreenProps {
 }
 
-export const DecisionsScreen: React.FunctionComponent<DecisionsScreenProps> = (
+export const CaseScreen: React.FunctionComponent<CaseScreenProps> = (
   props
 ) => {
-  const [caseLabelsError, setCaseLabelsError] = React.useState<Error | null>(
-    null
-  );
-  const [caseLabels, setCaseLabels] = React.useState<Array<CaseLabel> | null>(
-    null
-  );
-  const [selectedCaseLabel, setCaseLabel] = React.useState<CaseLabel | null>(
-    props.currentCase ? props.currentCase : null
-  );
-
+  const { caseLabel } = useParams();
   const classes = useStyles();
-
-  const handleSelectCase = (event: React.ChangeEvent<{ value: unknown }>) => {
-    setCaseLabel(event.target.value as CaseLabel);
-  };
-
-  React.useEffect(() => {
-    const fetchData = async () => {
-      setCaseLabelsError(null);
-      try {
-        const res = await fetch("/case");
-        const resJson = await res.json();
-        setCaseLabels(
-          resJson.map((caseSummary: CaseSummary) => caseSummary.label)
-        );
-      } catch (error) {
-        setCaseLabelsError(error);
-      }
-    };
-    fetchData();
-  }, []);
 
   return (
     <Container maxWidth="lg" className={classes.container}>
       <Grid container spacing={3}>
-        <Grid item xs={12}>
-          <Paper className={classes.contentPaper}>
-            <Title>Pick case</Title>
-
-            {caseLabelsError && (
-              <Alert severity="error">
-                Could not get case labels: {caseLabelsError.message}{" "}
-              </Alert>
-            )}
-
-            {caseLabels == null ?
-              <CircularProgress /> : (
-                <FormControl className={classes.formControl}>
-                  <InputLabel id="decisions-case-label">Case</InputLabel>
-                  <Select
-                    labelId="decisions-case-label"
-                    id="decisions-case"
-                    value={selectedCaseLabel}
-                    onChange={handleSelectCase}
-                  >
-                    {caseLabels.map((caseLabel) => (
-                      <MenuItem value={caseLabel}>{caseLabel}</MenuItem>
-                    ))}
-                  </Select>
-                </FormControl>
-              )
-            }
-          </Paper>
-        </Grid>
-
-        {selectedCaseLabel && (
+        {caseLabel && (
           <Grid item xs={12}>
             <Paper className={classes.contentPaper}>
-              <FetchedCaseSummary caseLabel={selectedCaseLabel} />
+              <FetchedCaseSummary caseLabel={caseLabel} />
             </Paper>
           </Grid>
         )}

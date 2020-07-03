@@ -1,6 +1,6 @@
 import React from "react";
 import {
-  Link as RouterLink,
+  NavLink as RouterLink,
   LinkProps as RouterLinkProps
 } from "react-router-dom";
 import {
@@ -13,8 +13,8 @@ export interface ListItemLinkProps {
   icon: React.ReactElement;
   primary: string;
   to: string;
-  selected: boolean;
-  onClick: () => void;
+  selected?: boolean;
+  onClick?: () => void;
 }
 
 export function ListItemLink(props: ListItemLinkProps) {
@@ -23,7 +23,11 @@ export function ListItemLink(props: ListItemLinkProps) {
   const renderLink = React.useMemo(
     () =>
       React.forwardRef<any, Omit<RouterLinkProps, 'to'>>((itemProps, ref) => (
-        <RouterLink to={to} ref={ref} {...itemProps} />
+        <RouterLink
+          to={to}
+          ref={ref}
+          {...itemProps}
+        />
       )),
     [to],
   );

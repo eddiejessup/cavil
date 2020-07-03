@@ -16,15 +16,12 @@ import {
   Hidden,
 } from "@material-ui/core";
 import MenuIcon from "@material-ui/icons/Menu";
-import {CaseLabel} from "./Api"
 import {useStyles} from "./Style"
-import {Screen, screenData, CasesScreen, DecisionsScreen} from "./Screens"
+import {screenData, CasesScreen, CaseScreen} from "./Screens"
 import {ListItemLink} from "./ListItemLink"
 
 export const App: React.FunctionComponent<{}> = (props) => {
   const [mobileDrawerOpen, setMobileDrawerOpen] = React.useState(false);
-  const [currentScreen, setCurrentScreen] = React.useState<Screen>("cases");
-  const [currentCase, setCurrentCase] = React.useState<CaseLabel | null>(null);
 
   const handleMobileDrawerToggle = () => {
     setMobileDrawerOpen(!mobileDrawerOpen);
@@ -60,8 +57,6 @@ export const App: React.FunctionComponent<{}> = (props) => {
           <ListItemLink
             to={`/${path}`}
             key={screen}
-            selected={screen === currentScreen}
-            onClick={() => setCurrentScreen(screen)}
             icon={icon}
             primary={label}
           />
@@ -112,18 +107,11 @@ export const App: React.FunctionComponent<{}> = (props) => {
         <main className={classes.content}>
           <div className={classes.toolbar} />
           <Switch>
-            <Route path="/cases">
-              <CasesScreen
-                onSelectCase={(caseLabel: CaseLabel) => {
-                  setCurrentCase(caseLabel);
-                  setCurrentScreen("decisions");
-                }}
-              />
+            <Route path="/cases/:caseLabel">
+              <CaseScreen/>
             </Route>
-            <Route path="/decisions">
-              <DecisionsScreen
-                currentCase={currentCase === null ? undefined : currentCase}
-              />
+            <Route path="/cases">
+              <CasesScreen/>
             </Route>
           </Switch>
         </main>
