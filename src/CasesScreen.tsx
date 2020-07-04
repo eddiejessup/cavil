@@ -12,7 +12,13 @@ import {
   Link as MaterialLink,
 } from "@material-ui/core";
 import { Alert } from "@material-ui/lab";
-import { CaseSummary, ClientError, renderClientError, fallBackErrorMsg, casesSummarise } from "./Api";
+import {
+  CaseSummary,
+  ClientError,
+  renderClientError,
+  fallBackErrorMsg,
+  casesSummarise,
+} from "./Api";
 import { NewCaseForm } from "./NewCase";
 import { useStyles } from "./Style";
 import { Title } from "./Common";
@@ -39,14 +45,14 @@ export const CasesScreen: React.FunctionComponent<CasesScreenProps> = (
           },
           (err: ClientError) => {
             setError(renderClientError(err));
-          },
-        )
+          }
+        );
       } catch (error) {
         setError(fallBackErrorMsg);
       }
     };
     fetchData();
-}, []);
+  }, []);
 
   return (
     <Container maxWidth="lg" className={classes.container}>
@@ -55,13 +61,13 @@ export const CasesScreen: React.FunctionComponent<CasesScreenProps> = (
           <Paper className={classes.contentPaper}>
             <Title>Cases</Title>
             {error && (
-              <Alert severity="error">
-                Couldn't get cases: {error}
-              </Alert>
+              <Alert severity="error">Couldn't get cases: {error}</Alert>
             )}
 
             {caseSummaries === null ? (
-              error ? null : <CircularProgress />
+              error ? null : (
+                <CircularProgress />
+              )
             ) : (
               <CaseSummaries caseSummaries={caseSummaries} />
             )}
@@ -99,9 +105,9 @@ const CaseSummaries: React.FunctionComponent<CaseSummariesProps> = (props) => {
       </TableHead>
       <TableBody>
         {props.caseSummaries.map((caseSummary) => {
-          const decisions = caseSummary.decisions;
-          const nrDecisions = decisions.length;
-          const lastDecision = decisions[nrDecisions - 1];
+          const validDecisions = caseSummary.decisions.filter((d) => d.isValid);
+          const nrValidDecisions = validDecisions.length;
+          const lastValidDecision = validDecisions[nrValidDecisions - 1];
           return (
             <TableRow key={caseSummary.label}>
               <TableCell>
@@ -113,11 +119,13 @@ const CaseSummaries: React.FunctionComponent<CaseSummariesProps> = (props) => {
                 </MaterialLink>
               </TableCell>
               <TableCell>{caseSummary.nrVariants}</TableCell>
-              <TableCell>{nrDecisions}</TableCell>
+              <TableCell>{nrValidDecisions}</TableCell>
               <TableCell>
-                {lastDecision ? lastDecision.decisionTimeUTC : ""}
+                {lastValidDecision ? lastValidDecision.decisionTimeUTC : ""}
               </TableCell>
-              <TableCell>{lastDecision ? lastDecision.variant : ""}</TableCell>
+              <TableCell>
+                {lastValidDecision ? lastValidDecision.variant : ""}
+              </TableCell>
             </TableRow>
           );
         })}

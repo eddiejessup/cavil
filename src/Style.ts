@@ -48,5 +48,8 @@ export const useStyles = makeStyles((theme: Theme) =>
       margin: theme.spacing(1),
       minWidth: 120,
     },
+    invalid: {
+      backgroundColor: "#FFE0E0",
+    },
   })
 );

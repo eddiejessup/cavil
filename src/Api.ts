@@ -17,7 +17,7 @@ export interface DecisionSummary {
   token: DecisionToken;
   decisionTimeUTC: string;
   variant: number;
-  isValid: boolean
+  isValid: boolean;
 }
 
 export interface ClientError {
@@ -25,11 +25,10 @@ export interface ClientError {
   errorDetail: string;
 }
 
-export const renderClientError = (err: ClientError) => (
-  `${err.errorType}: ${err.errorDetail}`
-)
+export const renderClientError = (err: ClientError) =>
+  `${err.errorType}: ${err.errorDetail}`;
 
-export const fallBackErrorMsg = "Something went wrong"
+export const fallBackErrorMsg = "Something went wrong";
 
 // Operations.
 
@@ -38,47 +37,58 @@ export const caseCreate = async (
   nrVariants: number,
   onSuccess: () => void,
   onClientError: (err: ClientError) => void
-) => (
+) =>
   await fetchCavil(
     `/case/${caseLabel}`,
-    {bodyObj: {nrVariants}, method: "PUT"},
+    { bodyObj: { nrVariants }, method: "PUT" },
     onSuccess,
-    onClientError,
-  )
-)
+    onClientError
+  );
 
 export const caseSummarise = async (
   caseLabel: CaseLabel,
   onSuccess: (v: CaseSummary) => void,
   onClientError: (err: ClientError) => void
-) => (
+) =>
   await fetchCavil(
     `/case/${caseLabel}`,
     {},
     async (res) => {
-      const caseSummary = await res.json()
-      onSuccess(caseSummary)
+      const caseSummary = await res.json();
+      onSuccess(caseSummary);
     },
-    onClientError,
-  )
-)
+    onClientError
+  );
 
 export const caseDecide = async (
   caseLabel: CaseLabel,
   decisionToken: DecisionToken,
   onSuccess: (v: Variant) => void,
   onClientError: (err: ClientError) => void
-) => (
+) =>
   await fetchCavil(
     `/case/${caseLabel}/${decisionToken}`,
-    {method: "PUT"},
+    { method: "PUT" },
     async (res) => {
-      const variant = await res.json()
-      onSuccess(variant)
+      const variant = await res.json();
+      onSuccess(variant);
     },
-    onClientError,
-  )
-)
+    onClientError
+  );
+
+export const caseDecisionInvalidate = async (
+  caseLabel: CaseLabel,
+  decisionToken: DecisionToken,
+  reason: string,
+  onSuccess: () => void,
+  onClientError: (err: ClientError) => void
+) =>
+  await fetchCavil(
+    `/case/${caseLabel}/${decisionToken}/invalidate`,
+    { bodyObj: { reason }, method: "POST" },
+    onSuccess,
+    onClientError
+  );
 
 export const casesSummarise = async (
   onSuccess: (v: Array<CaseSummary>) => void,
@@ -88,41 +98,40 @@ export const casesSummarise = async (
     "/case",
     {},
     async (res) => {
-      const caseSummaries = await res.json()
-      onSuccess(caseSummaries)
+      const caseSummaries = await res.json();
+      onSuccess(caseSummaries);
     },
-    onClientError,
-  )
-}
+    onClientError
+  );
+};
 
 // Helpers.
 
 interface FetchJSON {
-  bodyObj?: any,
-  method?: string,
+  bodyObj?: any;
+  method?: string;
 }
 
-const fetchJSON = async(url: string, opts: FetchJSON) => (
+const fetchJSON = async (url: string, opts: FetchJSON) =>
   fetch(url, {
-      ...opts,
-      headers: {"Content-Type": "application/json"},
-      body: opts.bodyObj === undefined ? undefined : JSON.stringify(opts.bodyObj),
-  })
-)
+    ...opts,
+    headers: { "Content-Type": "application/json" },
+    body: opts.bodyObj === undefined ? undefined : JSON.stringify(opts.bodyObj),
+  });
 
 const fetchCavil = async (
   url: string,
   opts: FetchJSON,
   onSuccess: (res: any) => void,
-  onClientError: (err: ClientError) => void,
+  onClientError: (err: ClientError) => void
 ) => {
   try {
-    const res = await fetchJSON(url, opts)
+    const res = await fetchJSON(url, opts);
     if (res.status === 200) {
       onSuccess(res);
     } else if (res.status === 400) {
       const errObj = await res.json();
-      onClientError(errObj)
+      onClientError(errObj);
     } else {
       throw new Error("Unknown error");
     }
@@ -135,4 +144,4 @@ const fetchCavil = async (
       throw error;
     }
   }
-}
+};

@@ -1,6 +1,11 @@
 import React from "react";
 import { Grid, TextField, Button } from "@material-ui/core";
-import { CaseLabel, fallBackErrorMsg, renderClientError, caseCreate } from "./Api";
+import {
+  CaseLabel,
+  fallBackErrorMsg,
+  renderClientError,
+  caseCreate,
+} from "./Api";
 import { Alert } from "@material-ui/lab";
 
 interface FormInputData {
@@ -26,9 +31,9 @@ export const NewCaseForm: React.FunctionComponent<NewCaseFormProps> = (
 
   const onSubmit = async (event: React.FormEvent<HTMLFormElement>) => {
     // Don't automatically reload on submit.
-    event.preventDefault()
+    event.preventDefault();
     if (formData.nrVariants === null) {
-      setFormError("Please enter a number of variants")
+      setFormError("Please enter a number of variants");
     } else {
       try {
         await caseCreate(
@@ -36,11 +41,11 @@ export const NewCaseForm: React.FunctionComponent<NewCaseFormProps> = (
           formData.nrVariants,
           () => window.location.reload(),
           (errObj) => {
-            setFormError(renderClientError(errObj))
-          },
-        )
+            setFormError(renderClientError(errObj));
+          }
+        );
       } catch (error) {
-        setFormError(fallBackErrorMsg)
+        setFormError(fallBackErrorMsg);
       }
     }
   };
