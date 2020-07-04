@@ -121,7 +121,8 @@ data DecisionSummary = DecisionSummary
   { token :: DecisionToken,
     decisionTimeUTC :: Text,
     variant :: Variant,
-    isValid :: Bool
+    isValid :: Bool,
+    invalidationReason :: Maybe Text
   }
   deriving stock (Generic)
   deriving anyclass (Ae.ToJSON)

@@ -20,19 +20,19 @@ aggIdFromCaseLabel :: CaseLabel -> AggregateID
 aggIdFromCaseLabel caseLabel =
   AggregateID $ uuidFromArbitraryText $ getTyped @Text caseLabel
 
-fetchInitialAggByLabel ::
+fetchInitialCaseAggByLabel ::
   (MonadIO m, MonadError e m, AsType AggregateError e, MonadReader r m, HasType PG.Connection r) =>
   CaseLabel ->
-  m (Maybe Aggregate, AggregateValidatedToken)
-fetchInitialAggByLabel caseLabel =
+  m (Maybe CaseAggregate, AggregateValidatedToken)
+fetchInitialCaseAggByLabel caseLabel =
   getAggregate (AggregateBeforeRequest (aggIdFromCaseLabel caseLabel))
 
-fetchCreatedAggByLabel ::
+fetchCreatedCaseAggByLabel ::
   (MonadIO m, MonadError e m, AsType AggregateError e, MonadReader r m, HasType PG.Connection r) =>
   CaseLabel ->
-  m (Aggregate, AggregateValidatedToken)
-fetchCreatedAggByLabel caseLabel =
-  fetchInitialAggByLabel caseLabel >>= \case
+  m (CaseAggregate, AggregateValidatedToken)
+fetchCreatedCaseAggByLabel caseLabel =
+  fetchInitialCaseAggByLabel caseLabel >>= \case
     (Nothing, valAggId) ->
       throwError $ injectTyped $ AggregateError (AggregateDuringRequest valAggId) NoSuchCase
     (Just agg, valAggId) ->
@@ -50,7 +50,7 @@ createCase ::
   NrVariants ->
   m ()
 createCase caseLabel nrVariants = do
-  (agg, valAggId) <- fetchInitialAggByLabel caseLabel
+  (agg, valAggId) <- fetchInitialCaseAggByLabel caseLabel
   let newEvts = [CaseCreated (CaseCreatedEvent caseLabel nrVariants)]
   void $ insertEventsValidated valAggId agg newEvts
 
@@ -59,7 +59,7 @@ summariseCase ::
   CaseLabel ->
   m CaseSummary
 summariseCase caseLabel = do
-  (agg, _) <- fetchCreatedAggByLabel caseLabel
+  (agg, _) <- fetchCreatedCaseAggByLabel caseLabel
 
   let
     decisions = toDecisionSummary
@@ -74,20 +74,23 @@ summariseCase caseLabel = do
       }
   where
     cmpDecisionTime ::
-      (DecisionToken, (T.UTCTime, Variant, IsDecisionValid)) ->
-      (DecisionToken, (T.UTCTime, Variant, IsDecisionValid)) ->
+      (DecisionToken, DecisionAggregate) ->
+      (DecisionToken, DecisionAggregate) ->
       Ordering
-    cmpDecisionTime (_, (a, _, _)) (_, (b, _, _)) = a `compare` b
+    cmpDecisionTime (_, a) (_, b) = getField @"decisionTime" a `compare` getField @"decisionTime" b
 
-toDecisionSummary :: (DecisionToken, (T.UTCTime, Variant, IsDecisionValid)) -> DecisionSummary
-toDecisionSummary (token, (decisionTimeUTC, variant, isDecisionValid)) =
+toDecisionSummary :: (DecisionToken, DecisionAggregate) -> DecisionSummary
+toDecisionSummary (token, decAgg) =
   DecisionSummary
     { token,
-      decisionTimeUTC = toS $ T.iso8601Show decisionTimeUTC,
-      variant,
-      isValid = case isDecisionValid of
+      decisionTimeUTC = toS $ T.iso8601Show $ getField @"decisionTime" decAgg,
+      variant = getTyped @Variant decAgg,
+      isValid = case getTyped @DecisionValidity decAgg of
         DecisionIsValid -> True
-        DecisionIsNotValid -> False
+        DecisionIsNotValid _ -> False,
+      invalidationReason = case getTyped @DecisionValidity decAgg of
+        DecisionIsValid -> Nothing
+        DecisionIsNotValid reason -> Just reason
     }
 
 decideCase ::
@@ -102,7 +105,7 @@ decideCase ::
   DecisionToken ->
   m Variant
 decideCase caseLabel reqDecisionToken = do
-  (agg, valAggId) <- fetchCreatedAggByLabel caseLabel
+  (agg, valAggId) <- fetchCreatedCaseAggByLabel caseLabel
   case Map.lookup reqDecisionToken (getField @"decisions" agg) of
     Nothing -> do
       nowTime <- liftIO T.getCurrentTime
@@ -112,8 +115,8 @@ decideCase caseLabel reqDecisionToken = do
       void $ insertEventsValidated valAggId (Just agg) newEvts
 
       pure decidedVariant
-    Just (_, existingDecision, _) ->
-      pure existingDecision
+    Just existingDecAgg ->
+      pure $ getTyped @Variant existingDecAgg
 
 invalidateDecision ::
   ( MonadIO m,
@@ -128,7 +131,7 @@ invalidateDecision ::
   Text ->
   m ()
 invalidateDecision caseLabel reqDecisionToken invalidateReason = do
-  (agg, valAggId) <- fetchCreatedAggByLabel caseLabel
+  (agg, valAggId) <- fetchCreatedCaseAggByLabel caseLabel
   let newEvts = [DecisionInvalidated (DecisionInvalidatedEvent reqDecisionToken invalidateReason)]
   void $ insertEventsValidated valAggId (Just agg) newEvts
 

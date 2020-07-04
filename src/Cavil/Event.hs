@@ -23,23 +23,40 @@ import Optics
 import Protolude hiding ((%), to)
 import qualified Data.Map.Strict as Map
 
-data IsDecisionValid
+data DecisionAggregate = DecisionAggregate
+  { decisionTime :: UTCTime,
+    variant :: Variant,
+    status :: DecisionValidity
+  }
+  deriving stock Generic
+
+data DecisionValidity
   = DecisionIsValid
-  | DecisionIsNotValid
+  | DecisionIsNotValid Text
 
-type DecisionEntry = (UTCTime, Variant, IsDecisionValid)
+initialDecisionAggregate :: DecisionMadeEvent -> DecisionAggregate
+initialDecisionAggregate ev =
+  DecisionAggregate
+    { decisionTime = getTyped @UTCTime ev,
+      variant = getTyped @Variant ev,
+      status = DecisionIsValid
+    }
 
-initialDecisionEntry :: DecisionMadeEvent -> (UTCTime, Variant, IsDecisionValid)
-initialDecisionEntry ev =
-  (getTyped @UTCTime ev, getTyped @Variant ev, DecisionIsValid)
+initialCaseAggregate :: CaseCreatedEvent -> CaseAggregate
+initialCaseAggregate ev =
+  CaseAggregate
+    { caseLabel = ev ^. typed @CaseLabel,
+      nrVariants = ev ^. typed @NrVariants,
+      decisions = Map.empty
+    }
 
-type DecisionsMap = Map DecisionToken DecisionEntry
+type DecisionsMap = Map DecisionToken DecisionAggregate
 
 -- | Do not filter to only valid decisions, or the token chain will lose
 -- coherence.
-lastDecisionTime :: Aggregate -> Maybe UTCTime
+lastDecisionTime :: CaseAggregate -> Maybe UTCTime
 lastDecisionTime agg =
-  maximumMay $ (\(time, _, _) -> time) <$> Map.elems (getTyped @DecisionsMap agg)
+  maximumMay $ getTyped @UTCTime <$> Map.elems (getTyped @DecisionsMap agg)
 
 computeNextDecisionToken :: CaseLabel -> Maybe UTCTime -> DecisionToken
 computeNextDecisionToken caseLabel mayLastDecisionTime =
@@ -47,39 +64,40 @@ computeNextDecisionToken caseLabel mayLastDecisionTime =
       mayLastDecisionTimeTxt = maybe initialDecisionSalt (Tx.pack . T.iso8601Show) mayLastDecisionTime
    in DecisionToken $ uuidFromArbitraryText (caseLabelTxt <> mayLastDecisionTimeTxt)
 
-nextDecisionTokenFromAgg :: Aggregate -> DecisionToken
+nextDecisionTokenFromAgg :: CaseAggregate -> DecisionToken
 nextDecisionTokenFromAgg agg =
   computeNextDecisionToken (getTyped @CaseLabel agg) (lastDecisionTime agg)
 
-foldAllEventsIntoAggregate :: (MonadError e m, AsType AggregateError e) => AggregateState -> [CaseEvent] -> m (Maybe Aggregate)
+foldAllEventsIntoAggregate :: (MonadError e m, AsType AggregateError e) => AggregateState -> [CaseEvent] -> m (Maybe CaseAggregate)
 foldAllEventsIntoAggregate aggState = foldIncrementalEventsIntoAggregate aggState Nothing
 
-foldIncrementalEventsIntoAggregate :: (MonadError e m, AsType AggregateError e) => AggregateState -> Maybe Aggregate -> [CaseEvent] -> m (Maybe Aggregate)
+foldIncrementalEventsIntoAggregate :: (MonadError e m, AsType AggregateError e) => AggregateState -> Maybe CaseAggregate -> [CaseEvent] -> m (Maybe CaseAggregate)
 foldIncrementalEventsIntoAggregate aggState = foldM (foldEventIntoAggregate aggState)
 
-foldEventIntoAggregate :: (MonadError e m, AsType AggregateError e) => AggregateState -> Maybe Aggregate -> CaseEvent -> m (Maybe Aggregate)
+foldEventIntoAggregate :: (MonadError e m, AsType AggregateError e) => AggregateState -> Maybe CaseAggregate -> CaseEvent -> m (Maybe CaseAggregate)
 foldEventIntoAggregate aggState mayAgg = \case
   CaseCreated ccEvt -> case mayAgg of
     Nothing ->
-      pure $ Just $ Aggregate (ccEvt ^. typed @CaseLabel) (ccEvt ^. typed @NrVariants) Map.empty
+      pure $ Just $ initialCaseAggregate ccEvt
     Just _ ->
       throwError $ aggError CaseAlreadyExists
   DecisionMade ev -> do
     agg <- note (aggError NoSuchCase) mayAgg
     if nextDecisionTokenFromAgg agg == ev ^. typed @DecisionToken
       then
-        pure $ Just $ agg & typed @DecisionsMap %~ Map.insert (getTyped @DecisionToken ev) (initialDecisionEntry ev)
+        pure $ Just $ agg & typed @DecisionsMap %~ Map.insert (getTyped @DecisionToken ev) (initialDecisionAggregate ev)
       else
         throwError $ aggError IncoherentDecisionToken
   DecisionInvalidated ev -> do
     let tok = getTyped @DecisionToken ev
+    let reason = getField @"reason" ev
     agg <- note (aggError NoSuchCase) mayAgg
-    decisionEntry <- note (aggError NoSuchDecision) (Map.lookup tok (getTyped @DecisionsMap agg))
-    case getTyped @IsDecisionValid decisionEntry of
-      DecisionIsNotValid ->
+    decisionAgg <- note (aggError NoSuchDecision) (Map.lookup tok (getTyped @DecisionsMap agg))
+    case getTyped @DecisionValidity decisionAgg of
+      DecisionIsNotValid _ ->
         throwError $ aggError DecisionAlreadyInvalidated
       DecisionIsValid ->
-        pure $ Just $ agg & typed @DecisionsMap % ix tok % typed @IsDecisionValid .~ DecisionIsNotValid
+        pure $ Just $ agg & typed @DecisionsMap % ix tok % typed @DecisionValidity .~ DecisionIsNotValid reason
   where
     aggError e =
       injectTyped $ AggregateError aggState e
@@ -87,7 +105,7 @@ foldEventIntoAggregate aggState mayAgg = \case
 getAggregate ::
   (MonadIO m, MonadError e m, AsType AggregateError e, MonadReader r m, HasType PG.Connection r) =>
   AggregateState ->
-  m (Maybe Aggregate, AggregateValidatedToken)
+  m (Maybe CaseAggregate, AggregateValidatedToken)
 getAggregate aggState = do
   let aggId = aggIdFromState aggState
   pgConn <- gview (typed @PG.Connection)
@@ -135,9 +153,9 @@ getAllEvents = do
 insertEventsValidated ::
   (MonadIO m, MonadError e m, AsType AggregateError e, AsType WriteError e, MonadReader r m, HasType PG.Connection r) =>
   AggregateValidatedToken ->
-  Maybe Aggregate ->
+  Maybe CaseAggregate ->
   [CaseEvent] ->
-  m (Maybe Aggregate)
+  m (Maybe CaseAggregate)
 insertEventsValidated valAggId curAgg evts = do
   -- Check inserting event should go okay.
   newAgg <- foldIncrementalEventsIntoAggregate (AggregateDuringRequest valAggId) curAgg evts
@@ -202,7 +220,7 @@ data DecisionInvalidatedEvent = DecisionInvalidatedEvent
   deriving stock (Generic)
   deriving anyclass (Ae.ToJSON, Ae.FromJSON)
 
-data Aggregate = Aggregate
+data CaseAggregate = CaseAggregate
   { caseLabel :: CaseLabel,
     nrVariants :: NrVariants,
     decisions :: DecisionsMap
