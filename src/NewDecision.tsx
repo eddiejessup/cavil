@@ -9,48 +9,63 @@ import {
   caseDecide,
 } from "./Api";
 import { useStyles } from "./Style";
-import { SubTitle } from "./Common";
+import { SubTitle, FetchState } from "./Common";
 
 export interface NewDecisionProps {
-  caseSummary?: CaseSummary;
+  fetchedCaseSummary: FetchState<CaseSummary>;
+  onCaseChanged: () => void;
 }
 
 export const NewDecision: React.FunctionComponent<NewDecisionProps> = ({
-  caseSummary,
+  fetchedCaseSummary,
+  onCaseChanged,
 }) => {
   const classes = useStyles();
 
   const [error, setError] = React.useState<string | null>(null);
+  const [pending, setPending] = React.useState<boolean>(false);
 
   const onClick = async () => {
-    if (caseSummary === undefined) {
-      setError("No case information available");
-    } else {
-      try {
-        await caseDecide(
-          caseSummary.label,
-          caseSummary.nextDecisionToken,
-          (_var) => {
-            window.location.reload();
-          },
-          (errObj: ClientError) => {
-            setError(renderClientError(errObj));
-          }
-        );
-      } catch (error) {
-        setError(fallBackErrorMsg);
-      }
+    if (fetchedCaseSummary.kind === "fetchSuccess") {
+      setPending(true);
+      setError(null);
+      await caseDecide(
+        fetchedCaseSummary.value.label,
+        fetchedCaseSummary.value.nextDecisionToken,
+        (_variant) => {
+          onCaseChanged();
+        },
+        (errObj: ClientError) => {
+          setError(renderClientError(errObj));
+        },
+        (_err: Error) => {
+          setError(fallBackErrorMsg);
+        }
+      );
+      setPending(false);
     }
   };
 
-  const content =
-    caseSummary === undefined ? (
-      <CircularProgress />
-    ) : (
-      <Button variant="contained" color="primary" onClick={onClick}>
-        Go
-      </Button>
-    );
+  let content;
+  switch (fetchedCaseSummary.kind) {
+    case "notFetched":
+      content = <CircularProgress />;
+      break;
+    case "fetchError":
+      content = <Alert severity="error">{fetchedCaseSummary.errMsg}</Alert>;
+      break;
+    case "fetchSuccess":
+      content = (
+        <Button
+          variant="contained"
+          color="primary"
+          onClick={onClick}
+          disabled={pending}
+        >
+          Go
+        </Button>
+      );
+  }
 
   return (
     <Paper className={classes.contentPaper}>
@@ -59,10 +74,10 @@ export const NewDecision: React.FunctionComponent<NewDecisionProps> = ({
           <Grid item>
             <SubTitle>Make decision</SubTitle>
           </Grid>
-          {caseSummary && (
+          {fetchedCaseSummary.kind === "fetchSuccess" && (
             <Grid item>
               <Chip
-                label={caseSummary.nextDecisionToken}
+                label={fetchedCaseSummary.value.nextDecisionToken}
                 color="secondary"
                 size="small"
               />

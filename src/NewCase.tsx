@@ -18,11 +18,13 @@ const initialFormInputData = {
   nrVariants: 2,
 };
 
-interface NewCaseFormProps {}
+interface NewCaseFormProps {
+  onCasesChanged: () => void;
+}
 
-export const NewCaseForm: React.FunctionComponent<NewCaseFormProps> = (
-  props
-) => {
+export const NewCaseForm: React.FunctionComponent<NewCaseFormProps> = ({
+  onCasesChanged,
+}) => {
   const [formError, setFormError] = React.useState<string | null>(null);
   const [formData, setFormData] = React.useState<FormInputData>(
     initialFormInputData
@@ -35,18 +37,21 @@ export const NewCaseForm: React.FunctionComponent<NewCaseFormProps> = (
     if (formData.nrVariants === null) {
       setFormError("Please enter a number of variants");
     } else {
-      try {
-        await caseCreate(
-          formData.label,
-          formData.nrVariants,
-          () => window.location.reload(),
-          (errObj) => {
-            setFormError(renderClientError(errObj));
-          }
-        );
-      } catch (error) {
-        setFormError(fallBackErrorMsg);
-      }
+      setFormError(null);
+      await caseCreate(
+        formData.label,
+        formData.nrVariants,
+        () => {
+          onCasesChanged();
+          setFormData(initialFormInputData);
+        },
+        (errObj) => {
+          setFormError(renderClientError(errObj));
+        },
+        (_err: Error) => {
+          setFormError(fallBackErrorMsg);
+        }
+      );
     }
   };
 

@@ -21,63 +21,104 @@ import {
 } from "./Api";
 import { NewCaseForm } from "./NewCase";
 import { useStyles } from "./Style";
-import { Title } from "./Common";
+import {
+  Title,
+  SubTitle,
+  FetchState,
+  ErrorMsg,
+  notFetched,
+  fetchError,
+  fetchSuccess,
+} from "./Common";
 import { Link as RouterLink, useRouteMatch } from "react-router-dom";
 
 interface CasesScreenProps {}
 
+type CaseSummaries = Array<CaseSummary>;
+
 export const CasesScreen: React.FunctionComponent<CasesScreenProps> = (
   props
 ) => {
-  const [error, setError] = React.useState<string | null>(null);
-  const [caseSummaries, setCaseSummaries] = React.useState<Array<
-    CaseSummary
-  > | null>(null);
-
   const classes = useStyles();
+
+  const [fetchedCaseSummaries, setFetchedCaseSummaries] = React.useState<
+    FetchState<CaseSummaries>
+  >(notFetched());
+
+  const onCasesChanged = () => {
+    setFetchedCaseSummaries(notFetched());
+  };
 
   React.useEffect(() => {
     const fetchData = async () => {
-      try {
+      if (fetchedCaseSummaries.kind === "notFetched") {
         await casesSummarise(
-          (caseSumaries) => {
-            setCaseSummaries(caseSumaries);
+          (value: CaseSummaries) => {
+            setFetchedCaseSummaries(fetchSuccess(value));
           },
-          (err: ClientError) => {
-            setError(renderClientError(err));
+          (errObj: ClientError) => {
+            setFetchedCaseSummaries(
+              fetchError(renderClientError(errObj) as ErrorMsg)
+            );
+          },
+          (_err: Error) => {
+            setFetchedCaseSummaries(fetchError(fallBackErrorMsg as ErrorMsg));
           }
         );
-      } catch (error) {
-        setError(fallBackErrorMsg);
       }
     };
+
     fetchData();
-  }, []);
+  }, [fetchedCaseSummaries]);
 
   return (
     <Container maxWidth="lg" className={classes.container}>
       <Grid container spacing={3}>
         <Grid item xs={12}>
-          <Paper className={classes.contentPaper}>
-            <Title>Cases</Title>
-            {error && (
-              <Alert severity="error">Couldn't get cases: {error}</Alert>
-            )}
+          <Title>Cases</Title>
+        </Grid>
 
-            {caseSummaries === null ? (
-              error ? null : (
-                <CircularProgress />
-              )
-            ) : (
-              <CaseSummaries caseSummaries={caseSummaries} />
-            )}
+        <Grid item xs={12}>
+          <Paper className={classes.contentPaper}>
+            <Grid container spacing={2} direction="column">
+              <Grid item>
+                <SubTitle>Existing cases</SubTitle>
+              </Grid>
+
+              {fetchedCaseSummaries.kind === "fetchError" && (
+                <Grid item>
+                  <Alert severity="error">
+                    Couldn't get cases: {fetchedCaseSummaries.errMsg}
+                  </Alert>
+                </Grid>
+              )}
+
+              {fetchedCaseSummaries.kind === "notFetched" && (
+                <Grid item>
+                  <CircularProgress />
+                </Grid>
+              )}
+
+              {fetchedCaseSummaries.kind === "fetchSuccess" && (
+                <Grid item>
+                  <CaseSummaries caseSummaries={fetchedCaseSummaries.value} />
+                </Grid>
+              )}
+            </Grid>
           </Paper>
         </Grid>
 
         <Grid item xs={12}>
           <Paper className={classes.contentPaper}>
-            <Title>New case</Title>
-            <NewCaseForm />
+            <Grid container spacing={2} direction="column">
+              <Grid item>
+                <SubTitle>New case</SubTitle>
+              </Grid>
+
+              <Grid item>
+                <NewCaseForm onCasesChanged={onCasesChanged} />
+              </Grid>
+            </Grid>
           </Paper>
         </Grid>
       </Grid>

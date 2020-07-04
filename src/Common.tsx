@@ -12,3 +12,34 @@ export const SubTitle: React.FunctionComponent<{}> = (props) => (
     {props.children}
   </Typography>
 );
+
+export type ErrorMsg = string;
+
+export interface FetchSuccess<V> {
+  kind: "fetchSuccess";
+  value: V;
+}
+
+export interface FetchError {
+  kind: "fetchError";
+  errMsg: ErrorMsg;
+}
+
+export interface NotFetched {
+  kind: "notFetched";
+}
+
+export type FetchState<V> = NotFetched | FetchSuccess<V> | FetchError;
+
+export const notFetched: <V>() => FetchState<V> = () => ({
+  kind: "notFetched",
+});
+
+export const fetchError: <V>(errMsg: ErrorMsg) => FetchState<V> = (
+  errMsg: ErrorMsg
+) => ({ kind: "fetchError", errMsg });
+
+export const fetchSuccess: <V>(value: V) => FetchState<V> = (value) => ({
+  kind: "fetchSuccess",
+  value,
+});

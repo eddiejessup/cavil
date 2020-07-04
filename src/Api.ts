@@ -36,19 +36,22 @@ export const caseCreate = async (
   caseLabel: CaseLabel,
   nrVariants: number,
   onSuccess: () => void,
-  onClientError: (err: ClientError) => void
+  onClientError: (err: ClientError) => void,
+  onOtherError: (err: Error) => void
 ) =>
   await fetchCavil(
     `/case/${caseLabel}`,
     { bodyObj: { nrVariants }, method: "PUT" },
     onSuccess,
-    onClientError
+    onClientError,
+    onOtherError
   );
 
 export const caseSummarise = async (
   caseLabel: CaseLabel,
   onSuccess: (v: CaseSummary) => void,
-  onClientError: (err: ClientError) => void
+  onClientError: (err: ClientError) => void,
+  onOtherError: (err: Error) => void
 ) =>
   await fetchCavil(
     `/case/${caseLabel}`,
@@ -57,14 +60,16 @@ export const caseSummarise = async (
       const caseSummary = await res.json();
       onSuccess(caseSummary);
     },
-    onClientError
+    onClientError,
+    onOtherError
   );
 
 export const caseDecide = async (
   caseLabel: CaseLabel,
   decisionToken: DecisionToken,
   onSuccess: (v: Variant) => void,
-  onClientError: (err: ClientError) => void
+  onClientError: (err: ClientError) => void,
+  onOtherError: (err: Error) => void
 ) =>
   await fetchCavil(
     `/case/${caseLabel}/${decisionToken}`,
@@ -73,7 +78,8 @@ export const caseDecide = async (
       const variant = await res.json();
       onSuccess(variant);
     },
-    onClientError
+    onClientError,
+    onOtherError
   );
 
 export const caseDecisionInvalidate = async (
@@ -81,18 +87,21 @@ export const caseDecisionInvalidate = async (
   decisionToken: DecisionToken,
   reason: string,
   onSuccess: () => void,
-  onClientError: (err: ClientError) => void
+  onClientError: (err: ClientError) => void,
+  onOtherError: (err: Error) => void
 ) =>
   await fetchCavil(
     `/case/${caseLabel}/${decisionToken}/invalidate`,
     { bodyObj: { reason }, method: "POST" },
     onSuccess,
-    onClientError
+    onClientError,
+    onOtherError
   );
 
 export const casesSummarise = async (
   onSuccess: (v: Array<CaseSummary>) => void,
-  onClientError: (err: ClientError) => void
+  onClientError: (err: ClientError) => void,
+  onOtherError: (err: Error) => void
 ) => {
   await fetchCavil(
     "/case",
@@ -101,7 +110,8 @@ export const casesSummarise = async (
       const caseSummaries = await res.json();
       onSuccess(caseSummaries);
     },
-    onClientError
+    onClientError,
+    onOtherError
   );
 };
 
@@ -123,7 +133,8 @@ const fetchCavil = async (
   url: string,
   opts: FetchJSON,
   onSuccess: (res: any) => void,
-  onClientError: (err: ClientError) => void
+  onClientError: (err: ClientError) => void,
+  onOtherError: (err: Error) => void
 ) => {
   try {
     const res = await fetchJSON(url, opts);
@@ -141,7 +152,7 @@ const fetchCavil = async (
       const errObj = await error.json();
       onClientError(errObj);
     } catch (_) {
-      throw error;
+      onOtherError(error);
     }
   }
 };

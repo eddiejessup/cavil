@@ -44,10 +44,6 @@ export const useStyles = makeStyles((theme: Theme) =>
       overflow: "auto",
       flexDirection: "column",
     },
-    formControl: {
-      margin: theme.spacing(1),
-      minWidth: 120,
-    },
     invalid: {
       backgroundColor: "#FFE0E0",
     },
