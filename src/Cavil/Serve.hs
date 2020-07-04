@@ -101,10 +101,11 @@ clientErrorAsServantError (ClientError reason msg) =
 
 caseCreate ::
   (MonadIO m, MonadReader AppEnv m, MonadError ServerError m) =>
+  User ->
   CaseLabel ->
   CreateCaseRequest ->
   m NoContent
-caseCreate caseLabel ccReq =
+caseCreate _user caseLabel ccReq =
   runExceptT (createCase caseLabel (getTyped @NrVariants ccReq)) >>= \case
     Left e -> throwError $ clientErrorAsServantError $ case e of
       CreateCaseAggregateError aggE -> mapAggregateError aggE
@@ -114,9 +115,10 @@ caseCreate caseLabel ccReq =
 
 caseSummarise ::
   (MonadIO m, MonadReader AppEnv m, MonadError ServerError m) =>
+  User ->
   CaseLabel ->
   m CaseSummary
-caseSummarise caseLabel =
+caseSummarise _user caseLabel =
   runExceptT (summariseCase caseLabel) >>= \case
     Left e -> throwError $ clientErrorAsServantError $ case e of
       CaseSummaryAggregateError aggE -> mapAggregateError aggE
@@ -125,10 +127,11 @@ caseSummarise caseLabel =
 
 caseDecide ::
   (MonadIO m, MonadReader AppEnv m, MonadError ServerError m) =>
+  User ->
   CaseLabel ->
   DecisionToken ->
   m Variant
-caseDecide caseLabel tok =
+caseDecide _user caseLabel tok =
   runExceptT (decideCase caseLabel tok) >>= \case
     Left e ->
       throwError $ clientErrorAsServantError $ case e of
@@ -138,11 +141,12 @@ caseDecide caseLabel tok =
 
 caseDecisionInvalidate ::
   (MonadIO m, MonadReader AppEnv m, MonadError ServerError m) =>
+  User ->
   CaseLabel ->
   DecisionToken ->
   InvalidateDecisionRequest ->
   m NoContent
-caseDecisionInvalidate caseLabel tok invalidateReq =
+caseDecisionInvalidate _user caseLabel tok invalidateReq =
   runExceptT (invalidateDecision caseLabel tok (getField @"reason" invalidateReq)) >>= \case
     Left e ->
       throwError $ clientErrorAsServantError $ case e of
@@ -152,8 +156,9 @@ caseDecisionInvalidate caseLabel tok invalidateReq =
 
 casesSummarise ::
   (MonadIO m, MonadReader AppEnv m) =>
+  User ->
   m [MultipackCaseSummary]
-casesSummarise =
+casesSummarise _user =
   getAllCaseLabels >>= mapM \caseLabel ->
     runExceptT (summariseCase caseLabel) <&> \case
       Left (CaseSummaryAggregateError aggE) ->
@@ -173,7 +178,9 @@ record =
 
 -- Environment that handlers can read from.
 data AppEnv = AppEnv
-  { pgConn :: PG.Connection
+  { pgConn :: PG.Connection,
+    clientUsername :: Text,
+    clientPassword :: Text
   }
   deriving stock (Generic)
 
@@ -185,4 +192,19 @@ appToHandler :: AppEnv -> AppM a -> Handler a
 appToHandler env m = runReaderT m env
 
 mkWebApplication :: AppEnv -> Application
-mkWebApplication env = genericServeT (appToHandler env) record
+mkWebApplication env = genericServeTWithContext (appToHandler env) record ctx
+  where ctx = checkBasicAuth env :. EmptyContext
+
+checkBasicAuth :: AppEnv -> BasicAuthCheck User
+checkBasicAuth env = BasicAuthCheck \basicAuthData ->
+  let
+    username = decodeUtf8 $ basicAuthUsername basicAuthData
+    password = decodeUtf8 $ basicAuthPassword basicAuthData
+  in
+    pure $ if username == clientUsername env
+      then
+        if password == clientPassword env
+          then Authorized ()
+          else BadPassword
+      else
+        NoSuchUser

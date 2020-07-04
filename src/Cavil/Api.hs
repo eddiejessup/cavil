@@ -12,12 +12,18 @@ import Servant
 import Servant.API.Generic
 
 -- API.
+type User = ()
+
+type AuthRealm = "Cavil cases"
+
+type AuthPrefix = BasicAuth AuthRealm User
+
 data Routes route = Routes
-  { _caseCreate :: route :- "case" :> Capture "label" CaseLabel :> ReqBody '[JSON] CreateCaseRequest :> Put '[JSON] NoContent,
-    _caseSummarise :: route :- "case" :> Capture "label" CaseLabel :> Get '[JSON] CaseSummary,
-    _caseDecide :: route :- "case" :> Capture "label" CaseLabel :> Capture "decisionToken" DecisionToken :> Put '[JSON] Variant,
-    _caseDecisionInvalidate :: route :- "case" :> Capture "label" CaseLabel :> Capture "decisionToken" DecisionToken :> "invalidate" :> ReqBody '[JSON] InvalidateDecisionRequest :> Post '[JSON] NoContent,
-    _casesSummarise :: route :- "case" :> Get '[JSON] [MultipackCaseSummary]
+  { _caseCreate :: route :- AuthPrefix :> "case" :> Capture "label" CaseLabel :> ReqBody '[JSON] CreateCaseRequest :> Put '[JSON] NoContent,
+    _caseSummarise :: route :- AuthPrefix :> "case" :> Capture "label" CaseLabel :> Get '[JSON] CaseSummary,
+    _caseDecide :: route :- AuthPrefix :> "case" :> Capture "label" CaseLabel :> Capture "decisionToken" DecisionToken :> Put '[JSON] Variant,
+    _caseDecisionInvalidate :: route :- AuthPrefix :> "case" :> Capture "label" CaseLabel :> Capture "decisionToken" DecisionToken :> "invalidate" :> ReqBody '[JSON] InvalidateDecisionRequest :> Post '[JSON] NoContent,
+    _casesSummarise :: route :- AuthPrefix :> "case" :> Get '[JSON] [MultipackCaseSummary]
   }
   deriving stock (Generic)
 

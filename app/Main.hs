@@ -1,4 +1,5 @@
 {-# LANGUAGE NamedFieldPuns #-}
+{-# LANGUAGE DuplicateRecordFields #-}
 
 module Main where
 
@@ -11,8 +12,8 @@ import qualified Network.Wai.Middleware.RequestLogger.JSON as ReqLog
 import Options.Applicative
 import Protolude hiding (option)
 
-pgOpts :: Parser PG.ConnectInfo
-pgOpts =
+pgOptsParser :: Parser PG.ConnectInfo
+pgOptsParser =
   PG.ConnectInfo
     <$> strOption
       ( long "pg-host"
@@ -36,20 +37,42 @@ pgOpts =
           <> metavar "PG_DB"
       )
 
+data AuthOpts = AuthOpts
+  { clientUsername :: Text,
+    clientPassword :: Text
+  }
+
+authOptsParser :: Parser AuthOpts
+authOptsParser =
+  AuthOpts
+    <$> strOption
+      ( long "client-username"
+          <> metavar "CLIENT_USERNAME"
+      )
+    <*> strOption
+      ( long "client-password"
+          <> metavar "CLIENT_PASSWORD"
+      )
+
 data Options = Options
   { pgConnectInfo :: PG.ConnectInfo,
+    authOpts :: AuthOpts,
     listenPort :: Word16
   }
 
 optsParser :: Parser Options
 optsParser =
   Options
-    <$> pgOpts
-    <*> option
-      auto
-      ( long "listen-port"
-          <> metavar "LISTEN_PORT"
-      )
+    <$> pgOptsParser
+    <*> authOptsParser
+    <*> listenPortParser
+  where
+    listenPortParser =
+      option
+        auto
+        ( long "listen-port"
+            <> metavar "LISTEN_PORT"
+        )
 
 optsInfo :: ParserInfo Options
 optsInfo =
@@ -68,10 +91,15 @@ requestLoggerSettings =
 
 main :: IO ()
 main = do
-  Options {pgConnectInfo, listenPort} <- execParser optsInfo
+  Options {pgConnectInfo, authOpts, listenPort} <- execParser optsInfo
   pgConn <- PG.connect pgConnectInfo
   logMiddleware <- ReqLog.mkRequestLogger requestLoggerSettings
-  let env = AppEnv {pgConn}
+  let
+    env = AppEnv
+      { pgConn,
+        clientUsername = getField @"clientUsername" authOpts,
+        clientPassword = getField @"clientPassword" authOpts
+      }
   putText $ "Starting at http://localhost:" <> show listenPort
   let webApp = logMiddleware $ mkWebApplication env
   run (fromIntegral listenPort) webApp
