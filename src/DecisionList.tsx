@@ -95,6 +95,7 @@ export const DecisionList: React.FunctionComponent<DecisionListProps> = ({
                   <TableCell>Decision time (UTC)</TableCell>
                   <TableCell>Variant</TableCell>
                   <TableCell>Token</TableCell>
+                  <TableCell>Status</TableCell>
                   <TableCell></TableCell>
                 </TableRow>
               </TableHead>
@@ -108,6 +109,13 @@ export const DecisionList: React.FunctionComponent<DecisionListProps> = ({
                       <TableCell>{decisionSummary.decisionTimeUTC}</TableCell>
                       <TableCell>{decisionSummary.variant}</TableCell>
                       <TableCell>{decisionSummary.token}</TableCell>
+                      <TableCell>
+                        {decisionSummary.isValid ? (
+                          null
+                        ) : decisionSummary.invalidationReason || (
+                          decisionSummary.invalidationReason
+                        )}
+                      </TableCell>
                       <TableCell>
                         {decisionSummary.isValid ? (
                           <Button
