@@ -123,12 +123,19 @@ interface FetchJSON {
   method?: string;
 }
 
-const fetchJSON = async (url: string, opts: FetchJSON) =>
-  fetch(url, {
+const fetchJSON = async (url: string, opts: FetchJSON) => {
+  const username = window.localStorage.getItem('cavil/username')
+  const password = window.localStorage.getItem('cavil/password')
+  const headers = {
+    "Content-Type": "application/json",
+    "Authorization": 'Basic ' + btoa(`${username}:${password}`),
+  }
+  return fetch(url, {
     ...opts,
-    headers: { "Content-Type": "application/json" },
+    headers,
     body: opts.bodyObj === undefined ? undefined : JSON.stringify(opts.bodyObj),
   });
+}
 
 const fetchCavil = async (
   url: string,
