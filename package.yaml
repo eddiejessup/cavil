@@ -41,6 +41,7 @@ dependencies:
   - warp
   - unordered-containers
   - containers
+  - safe
 
 library:
   source-dirs: src

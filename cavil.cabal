@@ -47,6 +47,7 @@ library
     , optparse-applicative
     , postgresql-simple
     , protolude
+    , safe
     , servant
     , servant-server
     , text
@@ -80,6 +81,7 @@ executable app
     , optparse-applicative
     , postgresql-simple
     , protolude
+    , safe
     , servant
     , servant-server
     , text

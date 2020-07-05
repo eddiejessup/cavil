@@ -20,13 +20,6 @@ COPY . /opt/cavil/
 RUN cabal new-install cavil:app
 
 EXPOSE 8000
+ENV LISTEN_PORT 8000
 
-ENTRYPOINT app \
-    --pg-host ${PG_HOST} \
-    --pg-port ${PG_PORT} \
-    --pg-user ${PG_USER} \
-    --pg-password ${PG_PASSWORD} \
-    --pg-db ${PG_DB} \
-    --listen-port 8000 \
-    --client-username ${CLIENT_USERNAME} \
-    --client-password ${CLIENT_PASSWORD}
+ENTRYPOINT app
