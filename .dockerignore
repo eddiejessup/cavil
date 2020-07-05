@@ -1,0 +1,12 @@
+# Elastic Beanstalk Files
+.elasticbeanstalk/*
+.git
+.gitignore
+
+# Docs.
+doc/
+README.md
+CHANGELOG.md
+
+# Dev files.
+hie.yaml
