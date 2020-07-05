@@ -4,9 +4,6 @@ synopsis: Recorded, randomised decisions
 description: See README at <https://github.com/eddiejessup/cavil#readme>
 maintainer: Elliot Marsden <elliot.marsden@gmail.com>
 github: eddiejessup/cavil
-extra-source-files:
-  - CHANGELOG.md
-  - README.md
 
 ghc-options:
 - -Wall

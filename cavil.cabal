@@ -12,9 +12,6 @@ homepage:       https://github.com/eddiejessup/cavil#readme
 bug-reports:    https://github.com/eddiejessup/cavil/issues
 maintainer:     Elliot Marsden <elliot.marsden@gmail.com>
 build-type:     Simple
-extra-source-files:
-    CHANGELOG.md
-    README.md
 
 source-repository head
   type: git

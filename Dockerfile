@@ -16,7 +16,10 @@ RUN cabal new-install generic-optics
 RUN cabal new-install postgresql-simple
 RUN cabal new-install --lib protolude uuid optics
 
-COPY . /opt/cavil/
+RUN mkdir /opt/cavil/app /opt/cavil/src
+COPY app /opt/cavil/app/
+COPY src /opt/cavil/src/
+COPY cavil.cabal Setup.hs /opt/cavil/
 RUN cabal new-install cavil:app
 
 EXPOSE 8000
