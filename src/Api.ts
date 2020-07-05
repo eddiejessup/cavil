@@ -1,5 +1,7 @@
 // Types.
 
+declare const API_BASE_URL: string;
+
 export type CaseLabel = string;
 
 export type DecisionToken = string;
@@ -41,7 +43,7 @@ export const caseCreate = async (
   onOtherError: (err: Error) => void
 ) =>
   await fetchCavil(
-    `/case/${caseLabel}`,
+    `case/${caseLabel}`,
     { bodyObj: { nrVariants }, method: "PUT" },
     onSuccess,
     onClientError,
@@ -55,7 +57,7 @@ export const caseSummarise = async (
   onOtherError: (err: Error) => void
 ) =>
   await fetchCavil(
-    `/case/${caseLabel}`,
+    `case/${caseLabel}`,
     {},
     async (res) => {
       const caseSummary = await res.json();
@@ -73,7 +75,7 @@ export const caseDecide = async (
   onOtherError: (err: Error) => void
 ) =>
   await fetchCavil(
-    `/case/${caseLabel}/${decisionToken}`,
+    `case/${caseLabel}/${decisionToken}`,
     { method: "PUT" },
     async (res) => {
       const variant = await res.json();
@@ -92,7 +94,7 @@ export const caseDecisionInvalidate = async (
   onOtherError: (err: Error) => void
 ) =>
   await fetchCavil(
-    `/case/${caseLabel}/${decisionToken}/invalidate`,
+    `case/${caseLabel}/${decisionToken}/invalidate`,
     { bodyObj: { reason }, method: "POST" },
     onSuccess,
     onClientError,
@@ -105,7 +107,7 @@ export const casesSummarise = async (
   onOtherError: (err: Error) => void
 ) => {
   await fetchCavil(
-    "/case",
+    `case`,
     {},
     async (res) => {
       const caseSummaries = await res.json();
@@ -138,14 +140,14 @@ const fetchJSON = async (url: string, opts: FetchJSON) => {
 }
 
 const fetchCavil = async (
-  url: string,
+  path: string,
   opts: FetchJSON,
   onSuccess: (res: any) => void,
   onClientError: (err: ClientError) => void,
   onOtherError: (err: Error) => void
 ) => {
   try {
-    const res = await fetchJSON(url, opts);
+    const res = await fetchJSON(`${API_BASE_URL}/${path}`, opts);
     if (res.status === 200) {
       onSuccess(res);
     } else if (res.status === 400) {
