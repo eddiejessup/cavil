@@ -21,6 +21,7 @@ dependencies:
   - base
   - binary
   - bytestring
+  - containers
   - cryptohash-sha256
   - data-default
   - generic-optics
@@ -28,17 +29,17 @@ dependencies:
   - optparse-applicative
   - postgresql-simple
   - protolude
+  - safe
   - servant
   - servant-server
   - text
   - time
   - transformers
+  - unordered-containers
   - uuid
+  - wai-cors
   - wai-extra
   - warp
-  - unordered-containers
-  - containers
-  - safe
 
 library:
   source-dirs: src
