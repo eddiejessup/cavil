@@ -11,10 +11,14 @@ RUN cabal update
 # Pick dependencies that:
 #   - capture a lot of our dependencies, to minimise the remaining dependencies
 #   - we are unlikely to drop, to minimise the chance we must rebuild from scratch.
-RUN cabal new-install servant-server
-RUN cabal new-install generic-optics
-RUN cabal new-install postgresql-simple
-RUN cabal new-install --lib protolude uuid optics
+RUN cabal new-install --lib \
+    servant-server \
+    generic-optics \
+    postgresql-simple \
+    protolude \
+    uuid \
+    optics \
+    data-default
 
 RUN mkdir /opt/cavil/app /opt/cavil/src
 COPY app /opt/cavil/app/

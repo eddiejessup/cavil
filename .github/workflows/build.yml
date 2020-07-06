@@ -14,14 +14,22 @@ jobs:
     - name: Check out
       uses: actions/checkout@v2
 
-    - name: Build and tag image
-      id: build-image
-      env:
-        ECR_REGISTRY: 125839941772.dkr.ecr.eu-west-1.amazonaws.com
-        ECR_REPOSITORY: cavil
-        IMAGE_TAG: ${{ github.sha }}
-      run: |
-        # Build a docker image and
-        # tag it to be ready to push to ECR.
-        docker build -t $ECR_REGISTRY/$ECR_REPOSITORY:$IMAGE_TAG .
-        echo "::set-output name=image::$ECR_REGISTRY/$ECR_REPOSITORY:$IMAGE_TAG"
+    - name: Configure AWS Credentials
+      uses: aws-actions/configure-aws-credentials@v1
+      with:
+        aws-access-key-id: ${{ secrets.AWS_ACCESS_KEY_ID }}
+        aws-secret-access-key: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
+        aws-region: eu-west-1
+
+    - name: Login to Amazon ECR
+      id: login-ecr
+      uses: aws-actions/amazon-ecr-login@v1
+
+    - name: Build and push image
+      uses: whoan/docker-build-with-cache-action@v5
+      with:
+        username: "${{ secrets.AWS_ACCESS_KEY_ID }}"
+        password: "${{ secrets.AWS_SECRET_ACCESS_KEY }}"
+        registry: ${{ steps.login-ecr.outputs.registry }}
+        image_name: cavil
+        image_tag: latest,${{ github.sha }}
