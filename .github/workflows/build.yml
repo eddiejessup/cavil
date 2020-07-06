@@ -1,0 +1,27 @@
+name: Build Docker image
+
+on:
+  push:
+    branches:
+      - master
+
+jobs:
+  build:
+
+    runs-on: ubuntu-latest
+
+    steps:
+    - name: Check out
+      uses: actions/checkout@v2
+
+    - name: Build and tag image
+      id: build-image
+      env:
+        ECR_REGISTRY: 125839941772.dkr.ecr.eu-west-1.amazonaws.com
+        ECR_REPOSITORY: cavil
+        IMAGE_TAG: ${{ github.sha }}
+      run: |
+        # Build a docker image and
+        # tag it to be ready to push to ECR.
+        docker build -t $ECR_REGISTRY/$ECR_REPOSITORY:$IMAGE_TAG .
+        echo "::set-output name=image::$ECR_REGISTRY/$ECR_REPOSITORY:$IMAGE_TAG"
