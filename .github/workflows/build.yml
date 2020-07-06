@@ -41,7 +41,7 @@ jobs:
       with:
         task-definition: task-definition.json
         container-name: cavil
-        image: ${{ steps.build-push-image.outputs.FULL_IMAGE_NAME }}:{{ github.sha }}
+        image: ${{ steps.build-push-image.outputs.FULL_IMAGE_NAME }}
 
     - name: Deploy Amazon ECS task definition
       uses: aws-actions/amazon-ecs-deploy-task-definition@v1
