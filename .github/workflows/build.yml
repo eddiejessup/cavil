@@ -33,7 +33,7 @@ jobs:
         password: "${{ secrets.AWS_SECRET_ACCESS_KEY }}"
         registry: ${{ steps.login-ecr.outputs.registry }}
         image_name: cavil
-        image_tag: latest,${{ github.sha }}
+        image_tag: ${{ github.sha }}
 
     - name: Render Amazon ECS task definition with image ID
       id: task-def
@@ -41,10 +41,11 @@ jobs:
       with:
         task-definition: task-definition.json
         container-name: cavil
-        image: ${{ steps.build-push-image.outputs.FULL_IMAGE_NAME }}
+        image: ${{ steps.build-push-image.outputs.FULL_IMAGE_NAME }}:{{ github.sha }}
 
     - name: Deploy Amazon ECS task definition
       uses: aws-actions/amazon-ecs-deploy-task-definition@v1
+      timeout-minutes: 5
       with:
         task-definition: ${{ steps.task-def.outputs.task-definition }}
         cluster: cavil
