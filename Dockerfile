@@ -26,7 +26,7 @@ COPY src /opt/cavil/src/
 COPY cavil.cabal Setup.hs /opt/cavil/
 RUN cabal new-install cavil:app
 
-EXPOSE 8000
-ENV LISTEN_PORT 8000
+EXPOSE 80
+ENV LISTEN_PORT 80
 
 ENTRYPOINT app
