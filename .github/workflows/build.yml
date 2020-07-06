@@ -26,6 +26,7 @@ jobs:
       uses: aws-actions/amazon-ecr-login@v1
 
     - name: Build and push image
+      id: build-push-image
       uses: whoan/docker-build-with-cache-action@v5
       with:
         username: "${{ secrets.AWS_ACCESS_KEY_ID }}"
@@ -33,3 +34,19 @@ jobs:
         registry: ${{ steps.login-ecr.outputs.registry }}
         image_name: cavil
         image_tag: latest,${{ github.sha }}
+
+    - name: Render Amazon ECS task definition with image ID
+      id: task-def
+      uses: aws-actions/amazon-ecs-render-task-definition@v1
+      with:
+        task-definition: task-definition.json
+        container-name: cavil
+        image: ${{ steps.build-push-image.outputs.FULL_IMAGE_NAME }}
+
+    - name: Deploy Amazon ECS task definition
+      uses: aws-actions/amazon-ecs-deploy-task-definition@v1
+      with:
+        task-definition: ${{ steps.task-def.outputs.task-definition }}
+        cluster: cavil
+        service: cavil-cls-svc
+        wait-for-service-stability: true

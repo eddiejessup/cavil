@@ -1,0 +1,77 @@
+{
+  "family": "cavil-task-definition",
+  "executionRoleArn": "arn:aws:iam::125839941772:role/ecsTaskExecutionRole",
+  "containerDefinitions": [
+    {
+      "name": "cavil",
+      "image": "to.be.populated.with.render.registry/repository:tag",
+      "cpu": 0,
+      "memory": null,
+      "portMappings": [
+        {
+          "hostPort": 80,
+          "protocol": "tcp",
+          "containerPort": 80
+        },
+        {
+          "hostPort": 5432,
+          "protocol": "tcp",
+          "containerPort": 5432
+        }
+      ],
+      "essential": true,
+      "logConfiguration": {
+        "logDriver": "awslogs",
+        "options": {
+          "awslogs-group": "/ecs/cavil-task-definition",
+          "awslogs-region": "eu-west-1",
+          "awslogs-stream-prefix": "ecs"
+        }
+      },
+      "entryPoint": [
+        "sh",
+        "-c"
+      ],
+      "command": [
+        "app"
+      ],
+      "workingDirectory": "/opt/cavil",
+      "secrets": [
+        {
+          "name": "CLIENT_USERNAME",
+          "valueFrom": "arn:aws:ssm:eu-west-1:125839941772:parameter/cavilClientUsername"
+        },
+        {
+          "name": "CLIENT_PASSWORD",
+          "valueFrom": "arn:aws:ssm:eu-west-1:125839941772:parameter/cavilClientPassword"
+        },
+        {
+          "name": "PG_HOST",
+          "valueFrom": "arn:aws:ssm:eu-west-1:125839941772:parameter/cavilPgHost"
+        },
+        {
+          "name": "PG_PORT",
+          "valueFrom": "arn:aws:ssm:eu-west-1:125839941772:parameter/cavilPgPort"
+        },
+        {
+          "name": "PG_USER",
+          "valueFrom": "arn:aws:ssm:eu-west-1:125839941772:parameter/cavilPgUser"
+        },
+        {
+          "name": "PG_PASSWORD",
+          "valueFrom": "arn:aws:ssm:eu-west-1:125839941772:parameter/cavilPgPassword"
+        },
+        {
+          "name": "PG_DB",
+          "valueFrom": "arn:aws:ssm:eu-west-1:125839941772:parameter/cavilPgDb"
+        }
+      ]
+    }
+  ],
+  "requiresCompatibilities": [
+    "FARGATE"
+  ],
+  "networkMode": "awsvpc",
+  "cpu": "256",
+  "memory": "512"
+}
