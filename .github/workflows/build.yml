@@ -49,5 +49,5 @@ jobs:
       with:
         task-definition: ${{ steps.task-def.outputs.task-definition }}
         cluster: cavil
-        service: cavil-cls-svc
+        service: api
         wait-for-service-stability: true
