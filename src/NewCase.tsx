@@ -59,7 +59,7 @@ export const NewCaseForm: React.FunctionComponent<NewCaseFormProps> = ({
     <form onSubmit={onSubmit}>
       <Grid
         container
-        direction="row"
+        direction="column"
         justify="flex-start"
         alignItems="flex-start"
         spacing={3}

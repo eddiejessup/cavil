@@ -17,10 +17,12 @@ import {
   Hidden,
 } from "@material-ui/core";
 import MenuIcon from "@material-ui/icons/Menu";
+import FolderIcon from "@material-ui/icons/Folder";
+import AccountBoxIcon from "@material-ui/icons/AccountBox";
 import { useStyles } from "./Style";
-import { screenData } from "./Screen";
 import { CasesScreen } from "./CasesScreen";
 import { CaseScreen } from "./CaseScreen";
+import { LoginScreen } from "./LoginScreen";
 import { ListItemLink } from "./ListItemLink";
 
 export const App: React.FunctionComponent<{}> = (props) => {
@@ -56,14 +58,18 @@ export const App: React.FunctionComponent<{}> = (props) => {
       <div className={classes.toolbar} />
       <Divider />
       <List>
-        {screenData.map(({ screen, label, icon, path }) => (
-          <ListItemLink
-            to={`/${path}`}
-            key={screen}
-            icon={icon}
-            primary={label}
-          />
-        ))}
+        <ListItemLink
+          to="/cases"
+          key="cases"
+          icon={<FolderIcon />}
+          primary="Cases"
+        />
+        <ListItemLink
+          to="/login"
+          key="login"
+          icon={<AccountBoxIcon />}
+          primary="Log in"
+        />
       </List>
       <Divider />
     </div>
@@ -118,6 +124,9 @@ export const App: React.FunctionComponent<{}> = (props) => {
             </Route>
             <Route path="/cases/:caseLabel">
               <CaseScreen />
+            </Route>
+            <Route path="/login">
+              <LoginScreen />
             </Route>
           </Switch>
         </main>

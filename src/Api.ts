@@ -125,19 +125,24 @@ interface FetchJSON {
   method?: string;
 }
 
+export const setAuth = (username: string, password: string) => {
+  window.localStorage.setItem("cavil/username", username);
+  window.localStorage.setItem("cavil/password", password);
+};
+
 const fetchJSON = async (url: string, opts: FetchJSON) => {
-  const username = window.localStorage.getItem('cavil/username')
-  const password = window.localStorage.getItem('cavil/password')
+  const username = window.localStorage.getItem("cavil/username");
+  const password = window.localStorage.getItem("cavil/password");
   const headers = {
     "Content-Type": "application/json",
-    "Authorization": 'Basic ' + btoa(`${username}:${password}`),
-  }
+    Authorization: "Basic " + btoa(`${username}:${password}`),
+  };
   return fetch(url, {
     ...opts,
     headers,
     body: opts.bodyObj === undefined ? undefined : JSON.stringify(opts.bodyObj),
   });
-}
+};
 
 const fetchCavil = async (
   path: string,
