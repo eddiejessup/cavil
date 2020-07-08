@@ -110,11 +110,10 @@ export const DecisionList: React.FunctionComponent<DecisionListProps> = ({
                       <TableCell>{decisionSummary.variant}</TableCell>
                       <TableCell>{decisionSummary.token}</TableCell>
                       <TableCell>
-                        {decisionSummary.isValid ? (
-                          null
-                        ) : decisionSummary.invalidationReason || (
-                          decisionSummary.invalidationReason
-                        )}
+                        {decisionSummary.isValid
+                          ? null
+                          : decisionSummary.invalidationReason ||
+                            decisionSummary.invalidationReason}
                       </TableCell>
                       <TableCell>
                         {decisionSummary.isValid ? (

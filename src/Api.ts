@@ -20,7 +20,7 @@ export interface DecisionSummary {
   decisionTimeUTC: string;
   variant: number;
   isValid: boolean;
-  invalidationReason ?: string;
+  invalidationReason?: string;
 }
 
 export interface ClientError {
