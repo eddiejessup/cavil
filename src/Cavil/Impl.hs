@@ -4,6 +4,7 @@
 
 module Cavil.Impl where
 
+import qualified Data.Binary as B
 import Cavil.Api
 import Cavil.Event
 import Cavil.Hashing
@@ -14,11 +15,14 @@ import qualified Data.Time as T
 import qualified Data.Time.Format.ISO8601 as T
 import qualified Database.PostgreSQL.Simple as PG
 import Protolude hiding ((%))
-import qualified Data.Map.Strict as Map
+import qualified Data.List as List
 
 aggIdFromCaseLabel :: CaseLabel -> AggregateID
 aggIdFromCaseLabel caseLabel =
-  AggregateID $ uuidFromArbitraryText $ getTyped @Text caseLabel
+  AggregateID $ uuidFromArbitraryByteString aggIdSalt $
+    B.encode $ getTyped @Text caseLabel
+  where
+    aggIdSalt = "7XUS608HTAPy"
 
 fetchInitialCaseAggByLabel ::
   (MonadIO m, MonadError e m, AsType AggregateError e, MonadReader r m, HasType PG.Connection r) =>
@@ -63,7 +67,7 @@ summariseCase caseLabel = do
 
   let
     decisions = toDecisionSummary
-      <$> sortBy cmpDecisionTime (Map.assocs (getField @"decisions" agg))
+      <$> sortBy cmpDecisionTime (getField @"decisions" agg)
 
   pure $
     CaseSummary
@@ -106,7 +110,7 @@ decideCase ::
   m Variant
 decideCase caseLabel reqDecisionToken = do
   (agg, valAggId) <- fetchCreatedCaseAggByLabel caseLabel
-  case Map.lookup reqDecisionToken (getField @"decisions" agg) of
+  case List.lookup reqDecisionToken (getField @"decisions" agg) of
     Nothing -> do
       nowTime <- liftIO T.getCurrentTime
       let decidedVariant = pickVariant reqDecisionToken (getTyped @NrVariants agg)

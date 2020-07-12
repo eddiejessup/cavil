@@ -11,12 +11,9 @@ import Data.UUID (UUID)
 import qualified Data.UUID as UUID
 import Protolude hiding ((%), to)
 
-uuidFromArbitraryByteString :: BS.L.ByteString -> UUID
-uuidFromArbitraryByteString bs =
-  B.decode @UUID $ BS.L.fromStrict $ SHA256.hashlazy bs
-
-uuidFromArbitraryText :: Text -> UUID
-uuidFromArbitraryText = uuidFromArbitraryByteString . B.encode
+uuidFromArbitraryByteString :: BS.L.ByteString -> BS.L.ByteString -> UUID
+uuidFromArbitraryByteString salt bs =
+  B.decode @UUID $ BS.L.fromStrict $ SHA256.hashlazy (bs <> salt)
 
 pickVariant :: DecisionToken -> NrVariants -> Variant
 pickVariant decisionToken nrVariants =
@@ -27,5 +24,13 @@ pickVariant decisionToken nrVariants =
         Nothing -> panic "impossible"
         Just v -> v
 
-initialDecisionSalt :: Text
-initialDecisionSalt = "OLQC1Q786FGq"
+nextDecisionToken :: Either CaseLabel DecisionToken -> DecisionToken
+nextDecisionToken labOrLastTok =
+  DecisionToken $ uuidFromArbitraryByteString decisionSalt $ case labOrLastTok of
+    Left caseLabel ->
+      B.encode (getTyped @Text caseLabel)
+    Right lastTok ->
+      UUID.toByteString $ getTyped @UUID lastTok
+  where
+    decisionSalt :: BS.L.ByteString
+    decisionSalt = "OLQC1Q786FGq"

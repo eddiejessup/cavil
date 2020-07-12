@@ -11,9 +11,7 @@ import qualified Data.Aeson as Ae
 import Data.Generics.Product.Typed
 import Data.Generics.Sum (AsType, injectTyped)
 import qualified Data.List as List
-import qualified Data.Text as Tx
 import Data.Time.Clock (UTCTime)
-import qualified Data.Time.Format.ISO8601 as T
 import Data.UUID (UUID)
 import qualified Database.PostgreSQL.Simple as PG
 import qualified Database.PostgreSQL.Simple.FromField as PG
@@ -21,7 +19,6 @@ import Database.PostgreSQL.Simple.SqlQQ
 import qualified Database.PostgreSQL.Simple.ToField as PG
 import Optics
 import Protolude hiding ((%), to)
-import qualified Data.Map.Strict as Map
 
 data DecisionAggregate = DecisionAggregate
   { decisionTime :: UTCTime,
@@ -47,26 +44,22 @@ initialCaseAggregate ev =
   CaseAggregate
     { caseLabel = ev ^. typed @CaseLabel,
       nrVariants = ev ^. typed @NrVariants,
-      decisions = Map.empty
+      decisions = []
     }
 
-type DecisionsMap = Map DecisionToken DecisionAggregate
+type DecisionsMap = [(DecisionToken, DecisionAggregate)]
 
 -- | Do not filter to only valid decisions, or the token chain will lose
 -- coherence.
-lastDecisionTime :: CaseAggregate -> Maybe UTCTime
-lastDecisionTime agg =
-  maximumMay $ getTyped @UTCTime <$> Map.elems (getTyped @DecisionsMap agg)
-
-computeNextDecisionToken :: CaseLabel -> Maybe UTCTime -> DecisionToken
-computeNextDecisionToken caseLabel mayLastDecisionTime =
-  let caseLabelTxt = caseLabel ^. typed @Text
-      mayLastDecisionTimeTxt = maybe initialDecisionSalt (Tx.pack . T.iso8601Show) mayLastDecisionTime
-   in DecisionToken $ uuidFromArbitraryText (caseLabelTxt <> mayLastDecisionTimeTxt)
+lastDecisionToken :: CaseAggregate -> Maybe DecisionToken
+lastDecisionToken agg =
+  fst <$> lastMay (getTyped @DecisionsMap agg)
 
 nextDecisionTokenFromAgg :: CaseAggregate -> DecisionToken
 nextDecisionTokenFromAgg agg =
-  computeNextDecisionToken (getTyped @CaseLabel agg) (lastDecisionTime agg)
+  Cavil.Hashing.nextDecisionToken $ case lastDecisionToken agg of
+    Nothing -> Left $ getTyped @CaseLabel agg
+    Just lastTok -> Right lastTok
 
 foldAllEventsIntoAggregate :: (MonadError e m, AsType AggregateError e) => AggregateState -> [CaseEvent] -> m (Maybe CaseAggregate)
 foldAllEventsIntoAggregate aggState = foldIncrementalEventsIntoAggregate aggState Nothing
@@ -85,19 +78,29 @@ foldEventIntoAggregate aggState mayAgg = \case
     agg <- note (aggError NoSuchCase) mayAgg
     if nextDecisionTokenFromAgg agg == ev ^. typed @DecisionToken
       then
-        pure $ Just $ agg & typed @DecisionsMap %~ Map.insert (getTyped @DecisionToken ev) (initialDecisionAggregate ev)
+        pure $ Just $ agg & typed @DecisionsMap %~ (<> [(getTyped @DecisionToken ev, initialDecisionAggregate ev)])
       else
         throwError $ aggError IncoherentDecisionToken
   DecisionInvalidated ev -> do
     let tok = getTyped @DecisionToken ev
     let reason = getField @"reason" ev
     agg <- note (aggError NoSuchCase) mayAgg
-    decisionAgg <- note (aggError NoSuchDecision) (Map.lookup tok (getTyped @DecisionsMap agg))
+    decisionAgg <- note (aggError NoSuchDecision) (List.lookup tok (getTyped @DecisionsMap agg))
     case getTyped @DecisionValidity decisionAgg of
       DecisionIsNotValid _ ->
         throwError $ aggError DecisionAlreadyInvalidated
       DecisionIsValid ->
-        pure $ Just $ agg & typed @DecisionsMap % ix tok % typed @DecisionValidity .~ DecisionIsNotValid reason
+        -- unsafeFiltered: "This is not a legal Traversal, unless you are very
+        -- careful not to invalidate the predicate on the target." I am a
+        -- careful boy: I only change the decision validity, while my
+        -- predicate inspects only the decision token.
+        pure $ Just $ agg &
+          typed @DecisionsMap
+            % traversed
+            % unsafeFiltered (\(inTok, _) -> inTok == tok)
+            % _2
+            % typed @DecisionValidity
+            .~ DecisionIsNotValid reason
   where
     aggError e =
       injectTyped $ AggregateError aggState e
