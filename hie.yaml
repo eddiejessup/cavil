@@ -5,6 +5,11 @@ cradle:
         cradle:
           cabal:
             component: "lib:cavil"
+    - path: test/
+      config:
+        cradle:
+          cabal:
+            component: "cavil:test"
     - path: ./Setup.hs
       config:
         cradle:

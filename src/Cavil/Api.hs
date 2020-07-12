@@ -33,9 +33,9 @@ api = genericApi (Proxy :: Proxy Routes)
 -- /API.
 
 -- Interface domain types.
-newtype Variant = Variant Int
-  deriving stock (Generic)
-  deriving newtype (Ae.ToJSON)
+newtype Variant = Variant {variantInt :: Int}
+  deriving stock (Generic, Show)
+  deriving newtype (Eq, Ord, Ae.ToJSON)
 
 instance Ae.FromJSON Variant where
   parseJSON value = do
@@ -51,7 +51,7 @@ mkVariant n
   | n < 0 = Nothing
   | otherwise = Just $ Variant n
 
-newtype NrVariants = NrVariants Int
+newtype NrVariants = NrVariants {nrVariantsInt :: Int}
   deriving stock (Generic, Show)
   deriving newtype (Ae.ToJSON)
 
@@ -69,12 +69,12 @@ mkNrVariants n
   | n < 2 = Nothing
   | otherwise = Just $ NrVariants n
 
-newtype DecisionToken = DecisionToken UUID
-  deriving stock (Generic)
+newtype DecisionToken = DecisionToken {decisionTokenUUID :: UUID}
+  deriving stock (Generic, Show)
   deriving newtype (Ae.ToJSON, Ae.FromJSON, Eq, FromHttpApiData)
   deriving newtype (Ord) -- For use in a Map
 
-newtype CaseLabel = CaseLabel Text
+newtype CaseLabel = CaseLabel {caseLabelText :: Text}
   deriving stock (Generic, Show)
   deriving newtype (Ae.ToJSON, Ae.FromJSON, FromHttpApiData)
 

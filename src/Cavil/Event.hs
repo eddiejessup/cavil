@@ -25,7 +25,7 @@ data DecisionAggregate = DecisionAggregate
     variant :: Variant,
     status :: DecisionValidity
   }
-  deriving stock Generic
+  deriving stock (Generic)
 
 data DecisionValidity
   = DecisionIsValid
@@ -77,10 +77,8 @@ foldEventIntoAggregate aggState mayAgg = \case
   DecisionMade ev -> do
     agg <- note (aggError NoSuchCase) mayAgg
     if nextDecisionTokenFromAgg agg == ev ^. typed @DecisionToken
-      then
-        pure $ Just $ agg & typed @DecisionsMap %~ (<> [(getTyped @DecisionToken ev, initialDecisionAggregate ev)])
-      else
-        throwError $ aggError IncoherentDecisionToken
+      then pure $ Just $ agg & typed @DecisionsMap %~ (<> [(getTyped @DecisionToken ev, initialDecisionAggregate ev)])
+      else throwError $ aggError IncoherentDecisionToken
   DecisionInvalidated ev -> do
     let tok = getTyped @DecisionToken ev
     let reason = getField @"reason" ev
@@ -94,8 +92,9 @@ foldEventIntoAggregate aggState mayAgg = \case
         -- careful not to invalidate the predicate on the target." I am a
         -- careful boy: I only change the decision validity, while my
         -- predicate inspects only the decision token.
-        pure $ Just $ agg &
-          typed @DecisionsMap
+        pure $ Just $
+          agg
+            & typed @DecisionsMap
             % traversed
             % unsafeFiltered (\(inTok, _) -> inTok == tok)
             % _2

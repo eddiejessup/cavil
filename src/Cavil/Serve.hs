@@ -193,18 +193,17 @@ appToHandler env m = runReaderT m env
 
 mkWebApplication :: AppEnv -> Application
 mkWebApplication env = genericServeTWithContext (appToHandler env) record ctx
-  where ctx = checkBasicAuth env :. EmptyContext
+  where
+    ctx = checkBasicAuth env :. EmptyContext
 
 checkBasicAuth :: AppEnv -> BasicAuthCheck User
 checkBasicAuth env = BasicAuthCheck \basicAuthData ->
-  let
-    username = decodeUtf8 $ basicAuthUsername basicAuthData
-    password = decodeUtf8 $ basicAuthPassword basicAuthData
-  in
-    pure $ if username == clientUsername env
-      then
-        if password == clientPassword env
-          then Authorized ()
-          else BadPassword
-      else
-        NoSuchUser
+  let username = decodeUtf8 $ basicAuthUsername basicAuthData
+      password = decodeUtf8 $ basicAuthPassword basicAuthData
+   in pure $
+        if username == clientUsername env
+          then
+            if password == clientPassword env
+              then Authorized ()
+              else BadPassword
+          else NoSuchUser

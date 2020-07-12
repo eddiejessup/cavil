@@ -51,6 +51,16 @@ executables:
     dependencies:
       - cavil
 
+tests:
+  test:
+    main: Main.hs
+    source-dirs: test
+    dependencies:
+      - cavil
+      - Cabal
+      - tasty
+      - tasty-hunit
+
 default-extensions:
 - ConstraintKinds
 - DataKinds
@@ -74,7 +84,6 @@ default-extensions:
 - OverloadedStrings
 - ScopedTypeVariables
 - StandaloneDeriving
-- StrictData
 - TupleSections
 - TypeApplications
 - TypeFamilies

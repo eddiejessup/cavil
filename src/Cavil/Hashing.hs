@@ -15,8 +15,8 @@ uuidFromArbitraryByteString :: BS.L.ByteString -> BS.L.ByteString -> UUID
 uuidFromArbitraryByteString salt bs =
   B.decode @UUID $ BS.L.fromStrict $ SHA256.hashlazy (bs <> salt)
 
-pickVariant :: DecisionToken -> NrVariants -> Variant
-pickVariant decisionToken nrVariants =
+pickVariant :: NrVariants -> DecisionToken -> Variant
+pickVariant nrVariants decisionToken =
   let (w1, w2, w3, w4) = UUID.toWords $ getTyped @UUID decisionToken
       nonModuloInt = abs $ sum $ fromIntegral @Word32 @Int <$> [w1, w2, w3, w4]
       moduloInt = nonModuloInt `mod` getTyped @Int nrVariants
