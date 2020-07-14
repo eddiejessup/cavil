@@ -20,44 +20,58 @@ unitTests :: TestTree
 unitTests =
   testGroup
     "Unit tests"
-    [ testCase "Single-case decision uniformity" caseUniform
+    [ testCase "Single-case decision uniformity" testCaseVarsUniform
     ]
 
-decTokenStream :: CaseLabel -> [DecisionToken]
-decTokenStream caseLabel = List.iterate' next (Hashing.nextDecisionToken (Left caseLabel))
+tokenStream :: CaseLabel -> [DecisionToken]
+tokenStream caseLabel = List.iterate' next (Hashing.nextDecisionToken (Left caseLabel))
   where
     next :: DecisionToken -> DecisionToken
     next tok = Hashing.nextDecisionToken (Right tok)
 
-decVarStream :: NrVariants -> [DecisionToken] -> [Variant]
-decVarStream nrVars toks = Hashing.pickVariant nrVars <$> toks
-
 countFreqs :: Ord k => [k] -> Map k Int
 countFreqs xs = Map.fromListWith (+) (zip xs (repeat 1))
 
-caseUniform :: Assertion
-caseUniform =
-  let tokStream :: [DecisionToken]
-      tokStream = decTokenStream sampleCaseLabel
-      varStream :: [Variant]
-      varStream = decVarStream sampleNrVariants tokStream
-      varSample :: [Variant]
-      varSample = take sampleSize varStream
-      expFreq :: Double
-      expFreq = fromIntegral sampleSize / fromIntegral (nrVariantsInt sampleNrVariants)
-      varFreqs :: Map Variant Int
-      varFreqs = countFreqs varSample
-      varFreqFracErrs :: [Double]
-      varFreqFracErrs = Map.elems varFreqs <&> \freq -> abs (fromIntegral freq - expFreq) / expFreq
-      maxAbsDiff :: Double
-      maxAbsDiff = maximum varFreqFracErrs
-   in assertBool "Biased decisions" (maxAbsDiff < uniformTol)
+testCaseVarsUniform :: Assertion
+testCaseVarsUniform =
+  for_ caseLabels $ \caseLabel ->
+    for_ nrVarses $ \nrVars ->
+      go caseLabel nrVars
   where
+    caseLabels :: [CaseLabel]
+    caseLabels = [CaseLabel "foo", CaseLabel "", CaseLabel "coffeeeeeeeeeeeeeeeeeeee"]
+
+    nrVarses :: [NrVariants]
+    nrVarses = [NrVariants 2, NrVariants 3, NrVariants 20]
+
     uniformTol :: Double
-    uniformTol = 0.002
-    sampleCaseLabel :: CaseLabel
-    sampleCaseLabel = CaseLabel "foo"
-    sampleNrVariants :: NrVariants
-    sampleNrVariants = NrVariants 2
+    uniformTol = 0.02
+
     sampleSize :: Int
     sampleSize = 1_000_000
+
+    go :: CaseLabel -> NrVariants -> Assertion
+    go sampleCaseLabel sampleNrVariants =
+      let varSample = take sampleSize
+            (Hashing.pickVariant sampleNrVariants <$> tokenStream sampleCaseLabel)
+
+          expectedFreq = fromIntegral sampleSize / fromIntegral (nrVariantsInt sampleNrVariants)
+
+          varFreqs = countFreqs varSample
+
+          freqErr freq =
+            abs (fromIntegral freq - expectedFreq) / expectedFreq
+
+          varFreqFracErrs = Map.elems varFreqs <&> freqErr
+
+          failMsg =
+            "Biased decisions for label '"
+            <> caseLabelText sampleCaseLabel
+            <> "' with '"
+            <> show (nrVariantsInt sampleNrVariants)
+            <> "' variants. Freqs: "
+            <> show (Map.elems varFreqs)
+            <> ". Errors: "
+            <> show varFreqFracErrs
+       in
+          assertBool (toS failMsg) (maximum varFreqFracErrs < uniformTol)
