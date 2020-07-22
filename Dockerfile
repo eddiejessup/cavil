@@ -20,9 +20,10 @@ RUN cabal new-install --lib \
     optics \
     data-default
 
-RUN mkdir /opt/cavil/app /opt/cavil/src
+RUN mkdir /opt/cavil/app /opt/cavil/src /opt/cavil/test
 COPY app /opt/cavil/app/
 COPY src /opt/cavil/src/
+COPY test /opt/cavil/test/
 COPY cavil.cabal Setup.hs /opt/cavil/
 RUN cabal new-install cavil:exe:app
 
