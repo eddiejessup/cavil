@@ -25,6 +25,8 @@ library
       Cavil.Impl
       Cavil.Project
       Cavil.Serve
+      Cavil.Serve.Case
+      Cavil.Serve.Common
   other-modules:
       Paths_cavil
   hs-source-dirs:

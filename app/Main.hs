@@ -5,6 +5,7 @@
 module Main where
 
 import Cavil.Serve
+import Cavil.Serve.Common
 import qualified Data.Default as Default
 import qualified Database.PostgreSQL.Simple as PG
 import Network.Wai.Handler.Warp (run)

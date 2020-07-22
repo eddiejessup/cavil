@@ -20,11 +20,16 @@ type AuthRealm = "Cavil cases"
 type AuthPrefix = BasicAuth AuthRealm User
 
 data Routes route = Routes
-  { _caseCreate :: route :- AuthPrefix :> "case" :> Capture "label" CaseLabel :> ReqBody '[JSON] CreateCaseRequest :> Put '[JSON] NoContent,
-    _caseSummarise :: route :- AuthPrefix :> "case" :> Capture "label" CaseLabel :> Get '[JSON] CaseSummary,
-    _caseDecide :: route :- AuthPrefix :> "case" :> Capture "label" CaseLabel :> Capture "decisionToken" DecisionToken :> Put '[JSON] Variant,
-    _caseDecisionInvalidate :: route :- AuthPrefix :> "case" :> Capture "label" CaseLabel :> Capture "decisionToken" DecisionToken :> "invalidate" :> ReqBody '[JSON] InvalidateDecisionRequest :> Post '[JSON] NoContent,
-    _casesSummarise :: route :- AuthPrefix :> "case" :> Get '[JSON] [CaseSummariesItem]
+  { _case :: route :- AuthPrefix :> "case" :> ToServant CaseRoutes AsApi
+  }
+  deriving stock (Generic)
+
+data CaseRoutes route = CaseRoutes
+  { _caseCreate :: route :- Capture "label" CaseLabel :> ReqBody '[JSON] CreateCaseRequest :> Put '[JSON] NoContent,
+    _caseSummarise :: route :- Capture "label" CaseLabel :> Get '[JSON] CaseSummary,
+    _caseDecide :: route :- Capture "label" CaseLabel :> Capture "decisionToken" DecisionToken :> Put '[JSON] Variant,
+    _caseDecisionInvalidate :: route :- Capture "label" CaseLabel :> Capture "decisionToken" DecisionToken :> "invalidate" :> ReqBody '[JSON] InvalidateDecisionRequest :> Post '[JSON] NoContent,
+    _casesSummarise :: route :- Get '[JSON] [CaseSummariesItem]
   }
   deriving stock (Generic)
 
