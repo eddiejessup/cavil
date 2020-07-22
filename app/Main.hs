@@ -25,8 +25,9 @@ requestLoggerSettings =
 corsResourcePolicy :: Maybe Text -> Cors.CorsResourcePolicy
 corsResourcePolicy mayAllowedOrigin =
   Cors.CorsResourcePolicy
-    { Cors.corsOrigins = mayAllowedOrigin <&> \orig ->
-        ([encodeUtf8 orig], credentialsNeeded),
+    { Cors.corsOrigins =
+        mayAllowedOrigin <&> \orig ->
+          ([encodeUtf8 orig], credentialsNeeded),
       Cors.corsMethods = Cors.simpleMethods ++ ["PUT"],
       Cors.corsRequestHeaders = ["Content-Type", "Authorization"],
       Cors.corsExposedHeaders = Nothing,

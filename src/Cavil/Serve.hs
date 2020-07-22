@@ -17,7 +17,7 @@ import qualified Data.ByteString.Lazy as BS.L
 import Data.Generics.Product.Typed
 import qualified Data.HashMap.Strict as HM
 import qualified Database.PostgreSQL.Simple as PG
-import Protolude hiding ((%), Handler)
+import Protolude hiding (Handler, (%))
 import Servant
 import Servant.Server.Generic
 
@@ -107,9 +107,10 @@ caseCreate ::
   m NoContent
 caseCreate _user caseLabel ccReq =
   runExceptT (createCase caseLabel (getTyped @NrVariants ccReq)) >>= \case
-    Left e -> throwError $ clientErrorAsServantError $ case e of
-      CreateCaseAggregateError aggE -> mapAggregateError aggE
-      CreateCaseWriteError we -> mapWriteError we
+    Left e -> throwError $
+      clientErrorAsServantError $ case e of
+        CreateCaseAggregateError aggE -> mapAggregateError aggE
+        CreateCaseWriteError we -> mapWriteError we
     Right () ->
       pure NoContent
 
@@ -120,8 +121,9 @@ caseSummarise ::
   m CaseSummary
 caseSummarise _user caseLabel =
   runExceptT (summariseCase caseLabel) >>= \case
-    Left e -> throwError $ clientErrorAsServantError $ case e of
-      CaseSummaryAggregateError aggE -> mapAggregateError aggE
+    Left e -> throwError $
+      clientErrorAsServantError $ case e of
+        CaseSummaryAggregateError aggE -> mapAggregateError aggE
     Right v ->
       pure v
 
@@ -134,9 +136,10 @@ caseDecide ::
 caseDecide _user caseLabel tok =
   runExceptT (decideCase caseLabel tok) >>= \case
     Left e ->
-      throwError $ clientErrorAsServantError $ case e of
-        DecideAggregateError aggE -> mapAggregateError aggE
-        DecideWriteError we -> mapWriteError we
+      throwError $
+        clientErrorAsServantError $ case e of
+          DecideAggregateError aggE -> mapAggregateError aggE
+          DecideWriteError we -> mapWriteError we
     Right v -> pure v
 
 caseDecisionInvalidate ::
@@ -149,9 +152,10 @@ caseDecisionInvalidate ::
 caseDecisionInvalidate _user caseLabel tok invalidateReq =
   runExceptT (invalidateDecision caseLabel tok (getField @"reason" invalidateReq)) >>= \case
     Left e ->
-      throwError $ clientErrorAsServantError $ case e of
-        InvalidateDecisionAggregateError aggE -> mapAggregateError aggE
-        InvalidateDecisionWriteError we -> mapWriteError we
+      throwError $
+        clientErrorAsServantError $ case e of
+          InvalidateDecisionAggregateError aggE -> mapAggregateError aggE
+          InvalidateDecisionWriteError we -> mapWriteError we
     Right () -> pure NoContent
 
 casesSummarise ::
@@ -162,10 +166,11 @@ casesSummarise _user =
   getAllCaseLabels >>= mapM \caseLabel ->
     runExceptT (summariseCase caseLabel) <&> \case
       Left (CaseSummaryAggregateError aggE) ->
-        FailedCaseSummariesItem $ FailedCaseSummary
-          { label = caseLabel,
-            error = mapAggregateError aggE
-          }
+        FailedCaseSummariesItem $
+          FailedCaseSummary
+            { label = caseLabel,
+              error = mapAggregateError aggE
+            }
       Right v ->
         SucceededCaseSummariesItem v
 

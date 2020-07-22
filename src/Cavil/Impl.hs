@@ -19,9 +19,10 @@ import Protolude hiding ((%))
 
 aggIdFromCaseLabel :: CaseLabel -> AggregateID
 aggIdFromCaseLabel caseLabel =
-  AggregateID $ uuidFromArbitraryByteString aggIdSalt
-    $ B.encode
-    $ getTyped @Text caseLabel
+  AggregateID $
+    uuidFromArbitraryByteString aggIdSalt $
+      B.encode $
+        getTyped @Text caseLabel
   where
     aggIdSalt = "7XUS608HTAPy"
 

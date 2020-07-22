@@ -18,7 +18,7 @@ import qualified Database.PostgreSQL.Simple.FromField as PG
 import Database.PostgreSQL.Simple.SqlQQ
 import qualified Database.PostgreSQL.Simple.ToField as PG
 import Optics
-import Protolude hiding ((%), to)
+import Protolude hiding (to, (%))
 
 data DecisionAggregate = DecisionAggregate
   { decisionTime :: UTCTime,
@@ -92,14 +92,15 @@ foldEventIntoAggregate aggState mayAgg = \case
         -- careful not to invalidate the predicate on the target." I am a
         -- careful boy: I only change the decision validity, while my
         -- predicate inspects only the decision token.
-        pure $ Just $
-          agg
-            & typed @DecisionsMap
-            % traversed
-            % unsafeFiltered (\(inTok, _) -> inTok == tok)
-            % _2
-            % typed @DecisionValidity
-            .~ DecisionIsNotValid reason
+        pure $
+          Just $
+            agg
+              & typed @DecisionsMap
+              % traversed
+              % unsafeFiltered (\(inTok, _) -> inTok == tok)
+              % _2
+              % typed @DecisionValidity
+              .~ DecisionIsNotValid reason
   where
     aggError e =
       injectTyped $ AggregateError aggState e
@@ -172,20 +173,21 @@ insertEvents ::
 insertEvents valAggId evts = do
   pgConn <- gview (typed @PG.Connection)
   nrRowsAffected <-
-    fmap (fromIntegral @Int64 @Int) $ liftIO $
-      PG.executeMany
-        pgConn
-        [sql| INSERT INTO event (event_type, aggregate_id, data) VALUES (?, ?, ?)|]
-        ( List.zip3
-            (repeat @Text "case")
-            (repeat (validatedAggId valAggId))
-            evts
-        )
+    fmap (fromIntegral @Int64 @Int) $
+      liftIO $
+        PG.executeMany
+          pgConn
+          [sql| INSERT INTO event (event_type, aggregate_id, data) VALUES (?, ?, ?)|]
+          ( List.zip3
+              (repeat @Text "case")
+              (repeat (validatedAggId valAggId))
+              evts
+          )
 
-  when (nrRowsAffected /= length evts)
-    $ throwError
-    $ injectTyped
-    $ InsertedUnexpectedNrRows (fromIntegral nrRowsAffected)
+  when (nrRowsAffected /= length evts) $
+    throwError $
+      injectTyped $
+        InsertedUnexpectedNrRows (fromIntegral nrRowsAffected)
 
 data CaseEvent
   = CaseCreated CaseCreatedEvent

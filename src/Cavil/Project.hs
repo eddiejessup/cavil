@@ -5,7 +5,7 @@ module Cavil.Project where
 import Cavil.Api
 import Cavil.Event
 import Data.Generics.Product.Typed
-import Protolude hiding ((%), to)
+import Protolude hiding (to, (%))
 
 caseLabelsFromEvents :: [CaseEvent] -> [CaseLabel]
 caseLabelsFromEvents = foldl' go []

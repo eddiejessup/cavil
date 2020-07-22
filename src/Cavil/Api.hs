@@ -118,10 +118,11 @@ data FailedCaseSummary = FailedCaseSummary
   deriving stock (Generic)
 
 instance Ae.ToJSON FailedCaseSummary where
-  toJSON v = Ae.object
-    [ ("label" :: Text) .= getField @"label" v,
-      "error" .= getField @"error" v
-    ]
+  toJSON v =
+    Ae.object
+      [ ("label" :: Text) .= getField @"label" v,
+        "error" .= getField @"error" v
+      ]
 
 instance Ae.ToJSON CaseSummariesItem where
   toJSON v =
