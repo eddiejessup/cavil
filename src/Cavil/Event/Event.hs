@@ -3,10 +3,10 @@
 {-# LANGUAGE QuasiQuotes #-}
 {-# LANGUAGE TypeApplications #-}
 
-module Cavil.Event where
+module Cavil.Event.Event where
 
-import Cavil.Api
-import Cavil.Hashing
+import Cavil.Api.Case
+import Cavil.Hashing (nextDecisionToken)
 import qualified Data.Aeson as Ae
 import Data.Generics.Product.Typed
 import Data.Generics.Sum (AsType, injectTyped)

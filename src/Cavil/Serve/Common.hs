@@ -1,7 +1,7 @@
 module Cavil.Serve.Common where
 
-import Cavil.Api
-import Cavil.Event
+import Cavil.Api.Common
+import Cavil.Event.Event
 import Data.Aeson ((.=))
 import qualified Data.Aeson as Ae
 import qualified Data.Aeson.Encoding as Ae.Enc

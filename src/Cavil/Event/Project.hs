@@ -1,9 +1,9 @@
 {-# LANGUAGE TypeApplications #-}
 
-module Cavil.Project where
+module Cavil.Event.Project where
 
-import Cavil.Api
-import Cavil.Event
+import Cavil.Api.Case
+import Cavil.Event.Event
 import Data.Generics.Product.Typed
 import Protolude hiding (to, (%))
 

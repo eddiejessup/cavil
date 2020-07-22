@@ -2,8 +2,9 @@
 
 module Main where
 
-import Cavil.Api
+import Cavil.Api.Case
 import qualified Cavil.Hashing as Hashing
+import Cavil.Impl.Case
 import qualified Data.List as List
 import qualified Data.Map.Strict as Map
 import Protolude
@@ -51,7 +52,7 @@ testCaseVarsUniform =
       let varSample =
             take
               sampleSize
-              (Hashing.pickVariant sampleNrVariants <$> tokenStream sampleCaseLabel)
+              (pickVariant sampleNrVariants <$> tokenStream sampleCaseLabel)
           expectedFreq = fromIntegral sampleSize / fromIntegral (nrVariantsInt sampleNrVariants)
           varFreqs = countFreqs varSample
           freqErr freq =

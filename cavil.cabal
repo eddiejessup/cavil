@@ -20,10 +20,14 @@ source-repository head
 library
   exposed-modules:
       Cavil.Api
-      Cavil.Event
+      Cavil.Api.Case
+      Cavil.Api.Common
+      Cavil.Event.Event
+      Cavil.Event.Project
       Cavil.Hashing
       Cavil.Impl
-      Cavil.Project
+      Cavil.Impl.Case
+      Cavil.Impl.Common
       Cavil.Serve
       Cavil.Serve.Case
       Cavil.Serve.Common

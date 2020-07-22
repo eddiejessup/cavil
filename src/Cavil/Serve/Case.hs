@@ -6,8 +6,9 @@
 module Cavil.Serve.Case where
 
 import Cavil.Api
-import Cavil.Event
-import Cavil.Impl
+import Cavil.Api.Case
+import Cavil.Event.Event
+import Cavil.Impl.Case
 import Cavil.Serve.Common
 import Data.Generics.Product.Typed
 import Protolude

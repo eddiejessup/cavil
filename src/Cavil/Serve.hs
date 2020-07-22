@@ -12,9 +12,9 @@ import Servant
 import Servant.API.Generic
 import Servant.Server.Generic
 
-siteRoutes :: Routes (AsServerT AppM)
+siteRoutes :: SiteRoutes (AsServerT AppM)
 siteRoutes =
-  Routes
+  SiteRoutes
     { _case = toServant . caseRoutes
     }
 
