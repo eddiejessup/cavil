@@ -157,14 +157,17 @@ caseDecisionInvalidate _user caseLabel tok invalidateReq =
 casesSummarise ::
   (MonadIO m, MonadReader AppEnv m) =>
   User ->
-  m [MultipackCaseSummary]
+  m [CaseSummariesItem]
 casesSummarise _user =
   getAllCaseLabels >>= mapM \caseLabel ->
     runExceptT (summariseCase caseLabel) <&> \case
       Left (CaseSummaryAggregateError aggE) ->
-        FailedCaseSummary (mapAggregateError aggE)
+        FailedCaseSummariesItem $ FailedCaseSummary
+          { label = caseLabel,
+            error = mapAggregateError aggE
+          }
       Right v ->
-        SucceededCaseSummary v
+        SucceededCaseSummariesItem v
 
 record :: Routes (AsServerT AppM)
 record =

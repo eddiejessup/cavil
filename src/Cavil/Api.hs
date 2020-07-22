@@ -4,6 +4,7 @@
 module Cavil.Api where
 
 import Control.Monad.Fail (MonadFail (fail))
+import Data.Aeson ((.=))
 import qualified Data.Aeson as Ae
 import qualified Data.HashMap.Strict as HM
 import Data.UUID (UUID)
@@ -23,7 +24,7 @@ data Routes route = Routes
     _caseSummarise :: route :- AuthPrefix :> "case" :> Capture "label" CaseLabel :> Get '[JSON] CaseSummary,
     _caseDecide :: route :- AuthPrefix :> "case" :> Capture "label" CaseLabel :> Capture "decisionToken" DecisionToken :> Put '[JSON] Variant,
     _caseDecisionInvalidate :: route :- AuthPrefix :> "case" :> Capture "label" CaseLabel :> Capture "decisionToken" DecisionToken :> "invalidate" :> ReqBody '[JSON] InvalidateDecisionRequest :> Post '[JSON] NoContent,
-    _casesSummarise :: route :- AuthPrefix :> "case" :> Get '[JSON] [MultipackCaseSummary]
+    _casesSummarise :: route :- AuthPrefix :> "case" :> Get '[JSON] [CaseSummariesItem]
   }
   deriving stock (Generic)
 
@@ -105,22 +106,38 @@ data CaseSummary = CaseSummary
   deriving stock (Generic)
   deriving anyclass (Ae.ToJSON)
 
-data MultipackCaseSummary
-  = FailedCaseSummary ClientError
-  | SucceededCaseSummary CaseSummary
+data CaseSummariesItem
+  = FailedCaseSummariesItem FailedCaseSummary
+  | SucceededCaseSummariesItem CaseSummary
   deriving stock (Generic)
 
-instance Ae.ToJSON MultipackCaseSummary where
+data FailedCaseSummary = FailedCaseSummary
+  { label :: CaseLabel,
+    error :: ClientError
+  }
+  deriving stock (Generic)
+
+instance Ae.ToJSON FailedCaseSummary where
+  toJSON v = Ae.object
+    [ ("label" :: Text) .= getField @"label" v,
+      "error" .= getField @"error" v
+    ]
+
+instance Ae.ToJSON CaseSummariesItem where
   toJSON v =
     let (obj, status) = case v of
-          SucceededCaseSummary caseSummary ->
+          SucceededCaseSummariesItem caseSummary ->
             case Ae.toJSON caseSummary of
               Ae.Object obj_ ->
                 (obj_, "Success")
               e ->
                 panic $ "Unexpected encoding of case summary: " <> show e
-          FailedCaseSummary err ->
-            (clientErrorAsObject err, "Failure")
+          FailedCaseSummariesItem failedSummary ->
+            case Ae.toJSON failedSummary of
+              Ae.Object obj_ ->
+                (obj_, "Failure")
+              e ->
+                panic $ "Unexpected encoding of failed case summary: " <> show e
      in Ae.Object $ HM.insert "fetchStatus" (Ae.String status) obj
 
 data DecisionSummary = DecisionSummary
@@ -137,15 +154,17 @@ data DecisionSummary = DecisionSummary
 data ClientError = ClientError ClientErrorReason (HM.HashMap Text Ae.Value)
   deriving stock (Generic)
 
-clientErrorAsObject :: ClientError -> HM.HashMap Text Ae.Value
-clientErrorAsObject (ClientError reason vals) =
-  HM.insert "reason" (renderClientReason reason) vals
+instance Ae.ToJSON ClientError where
+  toJSON (ClientError reason vals) =
+    Ae.Object $ HM.insert "reason" (Ae.toJSON reason) vals
 
 data ClientErrorReason
   = OurFault
   | BadRequest
   deriving stock (Generic)
-  deriving anyclass (Ae.ToJSON)
+
+instance Ae.ToJSON ClientErrorReason where
+  toJSON = Ae.String . renderClientReason
 
 renderClientReason :: IsString s => ClientErrorReason -> s
 renderClientReason = \case
