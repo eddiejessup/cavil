@@ -10,7 +10,7 @@ export type Variant = number;
 
 export interface CaseSummary {
   nextDecisionToken: DecisionToken;
-  label: string;
+  label: CaseLabel;
   nrVariants: number;
   decisions: Array<DecisionSummary>;
 }
@@ -27,6 +27,18 @@ export interface ClientError {
   errorType: string;
   errorDetail: string;
 }
+
+export interface FailedCaseSummariesItem {
+  fetchStatus: "Failure";
+  label: CaseLabel;
+  error: ClientError;
+}
+
+export interface SucceededCaseSummariesItem extends CaseSummary {
+  fetchStatus: "Success";
+}
+
+export type CaseSummariesItem = FailedCaseSummariesItem | SucceededCaseSummariesItem
 
 export const renderClientError = (err: ClientError) =>
   `${err.errorType}: ${err.errorDetail}`;
@@ -102,7 +114,7 @@ export const caseDecisionInvalidate = async (
   );
 
 export const casesSummarise = async (
-  onSuccess: (v: Array<CaseSummary>) => void,
+  onSuccess: (v: Array<CaseSummariesItem>) => void,
   onClientError: (err: ClientError) => void,
   onOtherError: (err: Error) => void
 ) => {
