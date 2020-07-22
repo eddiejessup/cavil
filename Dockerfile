@@ -24,7 +24,7 @@ RUN mkdir /opt/cavil/app /opt/cavil/src
 COPY app /opt/cavil/app/
 COPY src /opt/cavil/src/
 COPY cavil.cabal Setup.hs /opt/cavil/
-RUN cabal new-install cavil:app
+RUN cabal new-install cavil:exe:app
 
 EXPOSE 80
 ENV LISTEN_PORT 80
