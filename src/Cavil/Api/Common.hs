@@ -7,6 +7,7 @@ import qualified Data.HashMap.Strict as HM
 import Protolude
 
 -- Errors.
+
 data ClientError = ClientError ClientErrorReason (HM.HashMap Text Ae.Value)
   deriving stock (Generic)
 

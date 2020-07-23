@@ -1,21 +1,18 @@
 {-# LANGUAGE DuplicateRecordFields #-}
 {-# LANGUAGE LambdaCase #-}
-{-# LANGUAGE QuasiQuotes #-}
 {-# LANGUAGE TypeApplications #-}
 
-module Cavil.Event.Event where
+module Cavil.Event.Case where
 
 import Cavil.Api.Case
+import Cavil.Event.Common
 import Cavil.Hashing (nextDecisionToken)
 import qualified Data.Aeson as Ae
 import Data.Generics.Product.Typed
 import Data.Generics.Sum (AsType, injectTyped)
 import qualified Data.List as List
 import Data.Time.Clock (UTCTime)
-import Data.UUID (UUID)
-import qualified Database.PostgreSQL.Simple as PG
 import qualified Database.PostgreSQL.Simple.FromField as PG
-import Database.PostgreSQL.Simple.SqlQQ
 import qualified Database.PostgreSQL.Simple.ToField as PG
 import Optics
 import Protolude hiding (to, (%))
@@ -61,14 +58,8 @@ nextDecisionTokenFromAgg agg =
     Nothing -> Left $ getTyped @CaseLabel agg
     Just lastTok -> Right lastTok
 
-foldAllEventsIntoAggregate :: (MonadError e m, AsType AggregateError e) => AggregateState -> [CaseEvent] -> m (Maybe CaseAggregate)
-foldAllEventsIntoAggregate aggState = foldIncrementalEventsIntoAggregate aggState Nothing
-
-foldIncrementalEventsIntoAggregate :: (MonadError e m, AsType AggregateError e) => AggregateState -> Maybe CaseAggregate -> [CaseEvent] -> m (Maybe CaseAggregate)
-foldIncrementalEventsIntoAggregate aggState = foldM (foldEventIntoAggregate aggState)
-
-foldEventIntoAggregate :: (MonadError e m, AsType AggregateError e) => AggregateState -> Maybe CaseAggregate -> CaseEvent -> m (Maybe CaseAggregate)
-foldEventIntoAggregate aggState mayAgg = \case
+foldCaseEvent :: (MonadError e m, AsType (AggregateErrorWithState CaseAggregateError) e) => AggregateState -> Maybe CaseAggregate -> CaseEvent -> m (Maybe CaseAggregate)
+foldCaseEvent aggState mayAgg = \case
   CaseCreated ccEvt -> case mayAgg of
     Nothing ->
       pure $ Just $ initialCaseAggregate ccEvt
@@ -103,91 +94,7 @@ foldEventIntoAggregate aggState mayAgg = \case
               .~ DecisionIsNotValid reason
   where
     aggError e =
-      injectTyped $ AggregateError aggState e
-
-getAggregate ::
-  (MonadIO m, MonadError e m, AsType AggregateError e, MonadReader r m, HasType PG.Connection r) =>
-  AggregateState ->
-  m (Maybe CaseAggregate, AggregateValidatedToken)
-getAggregate aggState = do
-  let aggId = aggIdFromState aggState
-  pgConn <- gview (typed @PG.Connection)
-  evts <-
-    liftIO $
-      PG.query @_ @(PG.Only CaseEvent)
-        pgConn
-        [sql|
-            SELECT
-              data
-            FROM
-              event
-            WHERE
-              event_type = 'case'
-              and aggregate_id = ?
-            ORDER BY
-              sequence_nr ASC
-          |]
-        (PG.Only aggId)
-  agg <- foldAllEventsIntoAggregate aggState (PG.fromOnly <$> evts)
-  pure (agg, AggregateValidatedToken aggId)
-
-getAllEvents ::
-  (MonadIO m, MonadReader r m, HasType PG.Connection r) =>
-  m [CaseEvent]
-getAllEvents = do
-  pgConn <- gview (typed @PG.Connection)
-  evts <-
-    liftIO $
-      PG.query @_ @(PG.Only CaseEvent)
-        pgConn
-        [sql|
-          SELECT
-            data
-          FROM
-            event
-          WHERE
-            event_type = 'case'
-          ORDER BY
-            sequence_nr ASC
-        |]
-        ()
-  pure $ PG.fromOnly <$> evts
-
-insertEventsValidated ::
-  (MonadIO m, MonadError e m, AsType AggregateError e, AsType WriteError e, MonadReader r m, HasType PG.Connection r) =>
-  AggregateValidatedToken ->
-  Maybe CaseAggregate ->
-  [CaseEvent] ->
-  m (Maybe CaseAggregate)
-insertEventsValidated valAggId curAgg evts = do
-  -- Check inserting event should go okay.
-  newAgg <- foldIncrementalEventsIntoAggregate (AggregateDuringRequest valAggId) curAgg evts
-  insertEvents valAggId evts
-  pure newAgg
-
-insertEvents ::
-  (MonadIO m, MonadError e m, AsType WriteError e, MonadReader r m, HasType PG.Connection r) =>
-  AggregateValidatedToken ->
-  [CaseEvent] ->
-  m ()
-insertEvents valAggId evts = do
-  pgConn <- gview (typed @PG.Connection)
-  nrRowsAffected <-
-    fmap (fromIntegral @Int64 @Int) $
-      liftIO $
-        PG.executeMany
-          pgConn
-          [sql| INSERT INTO event (event_type, aggregate_id, data) VALUES (?, ?, ?)|]
-          ( List.zip3
-              (repeat @Text "case")
-              (repeat (validatedAggId valAggId))
-              evts
-          )
-
-  when (nrRowsAffected /= length evts) $
-    throwError $
-      injectTyped $
-        InsertedUnexpectedNrRows (fromIntegral nrRowsAffected)
+      injectTyped $ AggregateErrorWithState aggState e
 
 data CaseEvent
   = CaseCreated CaseCreatedEvent
@@ -231,27 +138,7 @@ data CaseAggregate = CaseAggregate
   }
   deriving stock (Generic)
 
-data AggregateState
-  = AggregateBeforeRequest AggregateID
-  | AggregateDuringRequest AggregateValidatedToken
-  deriving stock (Generic)
-
-newtype AggregateID = AggregateID {aggIdUUID :: UUID}
-  deriving stock (Generic, Show)
-  deriving newtype (PG.ToField, PG.FromField)
-
-aggIdFromState :: AggregateState -> AggregateID
-aggIdFromState = \case
-  AggregateBeforeRequest aggId -> aggId
-  AggregateDuringRequest valAggId -> validatedAggId valAggId
-
-newtype AggregateValidatedToken = AggregateValidatedToken {validatedAggId :: AggregateID}
-
-data AggregateError
-  = AggregateError AggregateState AggregateErrorDetail
-  deriving stock (Generic)
-
-data AggregateErrorDetail
+data CaseAggregateError
   = CaseAlreadyExists
   | NoSuchCase
   | NoSuchDecision
@@ -259,6 +146,19 @@ data AggregateErrorDetail
   | DecisionAlreadyInvalidated
   deriving stock (Generic, Show)
 
-data WriteError
-  = InsertedUnexpectedNrRows Int
-  deriving stock (Generic, Show)
+caseLabelsFromEvents :: [CaseEvent] -> [CaseLabel]
+caseLabelsFromEvents = foldl' go []
+  where
+    go caseLabels = \case
+      CaseCreated ccEvt -> caseLabels <> [getTyped @CaseLabel ccEvt]
+      DecisionMade _ -> caseLabels
+      DecisionInvalidated _ -> caseLabels
+
+instance CavilEvent CaseEvent where
+  type EvtAggregate CaseEvent = CaseAggregate
+
+  type AggErr CaseEvent = CaseAggregateError
+
+  eventType _pxy = "case"
+
+  foldEvt = foldCaseEvent

@@ -5,8 +5,8 @@
 module Cavil.Impl.Case where
 
 import Cavil.Api.Case
-import Cavil.Event.Event
-import Cavil.Event.Project
+import Cavil.Event.Common
+import Cavil.Event.Case
 import Cavil.Hashing
 import qualified Data.Binary as B
 import Data.Generics.Product.Typed
@@ -38,27 +38,27 @@ pickVariant nrVariants decisionToken =
         Just v -> v
 
 fetchInitialCaseAggByLabel ::
-  (MonadIO m, MonadError e m, AsType AggregateError e, MonadReader r m, HasType PG.Connection r) =>
+  (MonadIO m, MonadError e m, AsType (AggregateErrorWithState CaseAggregateError) e, MonadReader r m, HasType PG.Connection r) =>
   CaseLabel ->
   m (Maybe CaseAggregate, AggregateValidatedToken)
 fetchInitialCaseAggByLabel caseLabel =
-  getAggregate (AggregateBeforeRequest (aggIdFromCaseLabel caseLabel))
+  getAggregate (AggregateBeforeRequest (aggIdFromCaseLabel caseLabel)) (Proxy @CaseEvent)
 
 fetchCreatedCaseAggByLabel ::
-  (MonadIO m, MonadError e m, AsType AggregateError e, MonadReader r m, HasType PG.Connection r) =>
+  (MonadIO m, MonadError e m, AsType (AggregateErrorWithState CaseAggregateError) e, MonadReader r m, HasType PG.Connection r) =>
   CaseLabel ->
   m (CaseAggregate, AggregateValidatedToken)
 fetchCreatedCaseAggByLabel caseLabel =
   fetchInitialCaseAggByLabel caseLabel >>= \case
     (Nothing, valAggId) ->
-      throwError $ injectTyped $ AggregateError (AggregateDuringRequest valAggId) NoSuchCase
+      throwError $ injectTyped $ AggregateErrorWithState (AggregateDuringRequest valAggId) NoSuchCase
     (Just agg, valAggId) ->
       pure (agg, valAggId)
 
 createCase ::
   ( MonadIO m,
     MonadError e m,
-    AsType AggregateError e,
+    AsType (AggregateErrorWithState CaseAggregateError) e,
     AsType WriteError e,
     MonadReader r m,
     HasType PG.Connection r
@@ -72,7 +72,7 @@ createCase caseLabel nrVariants = do
   void $ insertEventsValidated valAggId agg newEvts
 
 summariseCase ::
-  (MonadIO m, MonadError e m, AsType AggregateError e, MonadReader r m, HasType PG.Connection r) =>
+  (MonadIO m, MonadError e m, AsType (AggregateErrorWithState CaseAggregateError) e, MonadReader r m, HasType PG.Connection r) =>
   CaseLabel ->
   m CaseSummary
 summariseCase caseLabel = do
@@ -113,7 +113,7 @@ toDecisionSummary (token, decAgg) =
 decideCase ::
   ( MonadIO m,
     MonadError e m,
-    AsType AggregateError e,
+    AsType (AggregateErrorWithState CaseAggregateError) e,
     AsType WriteError e,
     MonadReader r m,
     HasType PG.Connection r
@@ -138,7 +138,7 @@ decideCase caseLabel reqDecisionToken = do
 invalidateDecision ::
   ( MonadIO m,
     MonadError e m,
-    AsType AggregateError e,
+    AsType (AggregateErrorWithState CaseAggregateError) e,
     AsType WriteError e,
     MonadReader r m,
     HasType PG.Connection r

@@ -6,33 +6,74 @@
 module Cavil.Serve.Case where
 
 import Cavil.Api
+import Cavil.Api.Common
 import Cavil.Api.Case
-import Cavil.Event.Event
+import Cavil.Event.Common
+import Cavil.Event.Case
 import Cavil.Impl.Case
 import Cavil.Serve.Common
+import Data.Aeson ((.=))
 import Data.Generics.Product.Typed
 import Protolude
 import Servant
 import Servant.Server.Generic
 
 data CreateCaseError
-  = CreateCaseAggregateError AggregateError
+  = CreateCaseAggregateError (AggregateErrorWithState CaseAggregateError)
   | CreateCaseWriteError WriteError
   deriving stock (Generic)
 
 data CaseSummaryError
-  = CaseSummaryAggregateError AggregateError
+  = CaseSummaryAggregateError (AggregateErrorWithState CaseAggregateError)
   deriving stock (Generic)
 
 data DecideError
-  = DecideAggregateError AggregateError
+  = DecideAggregateError (AggregateErrorWithState CaseAggregateError)
   | DecideWriteError WriteError
   deriving stock (Generic)
 
 data InvalidateDecisionError
-  = InvalidateDecisionAggregateError AggregateError
+  = InvalidateDecisionAggregateError (AggregateErrorWithState CaseAggregateError)
   | InvalidateDecisionWriteError WriteError
   deriving stock (Generic)
+
+mapAggregateError :: AggregateErrorWithState CaseAggregateError -> ClientError
+mapAggregateError (AggregateErrorWithState aggState detail) =
+  case aggState of
+    AggregateBeforeRequest _ ->
+      let detailMsg = case detail of
+            CaseAlreadyExists ->
+              "Multiple case creation events"
+            NoSuchCase ->
+              "Case events before case creation"
+            NoSuchDecision ->
+              "Decision events before decision creation"
+            IncoherentDecisionToken ->
+              "Incoherent tokens in decision chain"
+            DecisionAlreadyInvalidated ->
+              "Multiple invalidations of decision"
+       in ClientError OurFault $
+            mconcat
+              [ "errorType" .= ("Invalid existing data" :: Text),
+                "errorDetail" .= (detailMsg :: Text)
+              ]
+    AggregateDuringRequest _ ->
+      let detailMsg = case detail of
+            CaseAlreadyExists ->
+              "Case already exists"
+            NoSuchCase ->
+              "No such case found"
+            NoSuchDecision ->
+              "No such decision found"
+            IncoherentDecisionToken ->
+              "Incoherent decision token"
+            DecisionAlreadyInvalidated ->
+              "Decision has already been invalidated"
+       in ClientError BadRequest $
+            mconcat
+              [ "errorType" .= ("Bad request" :: Text),
+                "errorDetail" .= (detailMsg :: Text)
+              ]
 
 caseCreate ::
   (MonadIO m, MonadReader AppEnv m, MonadError ServerError m) =>

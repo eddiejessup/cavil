@@ -22,8 +22,8 @@ library
       Cavil.Api
       Cavil.Api.Case
       Cavil.Api.Common
-      Cavil.Event.Event
-      Cavil.Event.Project
+      Cavil.Event.Case
+      Cavil.Event.Common
       Cavil.Hashing
       Cavil.Impl
       Cavil.Impl.Case

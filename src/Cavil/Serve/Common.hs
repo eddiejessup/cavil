@@ -1,7 +1,7 @@
 module Cavil.Serve.Common where
 
 import Cavil.Api.Common
-import Cavil.Event.Event
+import Cavil.Event.Common
 import Data.Aeson ((.=))
 import qualified Data.Aeson as Ae
 import qualified Data.Aeson.Encoding as Ae.Enc
@@ -25,44 +25,6 @@ type AppM = ReaderT AppEnv Handler
 
 bsFromAeObject :: HM.HashMap Text Ae.Value -> BS.L.ByteString
 bsFromAeObject = B.toLazyByteString . Ae.fromEncoding . Ae.Enc.value . Ae.Object
-
-mapAggregateError :: AggregateError -> ClientError
-mapAggregateError (AggregateError aggState detail) =
-  case aggState of
-    AggregateBeforeRequest _ ->
-      let detailMsg = case detail of
-            CaseAlreadyExists ->
-              "Multiple case creation events"
-            NoSuchCase ->
-              "Case events before case creation"
-            NoSuchDecision ->
-              "Decision events before decision creation"
-            IncoherentDecisionToken ->
-              "Incoherent tokens in decision chain"
-            DecisionAlreadyInvalidated ->
-              "Multiple invalidations of decision"
-       in ClientError OurFault $
-            mconcat
-              [ "errorType" .= ("Invalid existing data" :: Text),
-                "errorDetail" .= (detailMsg :: Text)
-              ]
-    AggregateDuringRequest _ ->
-      let detailMsg = case detail of
-            CaseAlreadyExists ->
-              "Case already exists"
-            NoSuchCase ->
-              "No such case found"
-            NoSuchDecision ->
-              "No such decision found"
-            IncoherentDecisionToken ->
-              "Incoherent decision token"
-            DecisionAlreadyInvalidated ->
-              "Decision has already been invalidated"
-       in ClientError BadRequest $
-            mconcat
-              [ "errorType" .= ("Bad request" :: Text),
-                "errorDetail" .= (detailMsg :: Text)
-              ]
 
 mapWriteError :: WriteError -> ClientError
 mapWriteError e =
