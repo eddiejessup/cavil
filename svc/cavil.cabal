@@ -50,6 +50,7 @@ library
     , cryptohash-sha256
     , data-default
     , generic-optics
+    , githash
     , optics
     , optparse-applicative
     , postgresql-simple
@@ -86,6 +87,7 @@ executable app
     , cryptohash-sha256
     , data-default
     , generic-optics
+    , githash
     , optics
     , optparse-applicative
     , postgresql-simple
@@ -122,6 +124,7 @@ test-suite test
     , cryptohash-sha256
     , data-default
     , generic-optics
+    , githash
     , optics
     , optparse-applicative
     , postgresql-simple

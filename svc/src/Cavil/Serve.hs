@@ -1,6 +1,7 @@
 {-# LANGUAGE BlockArguments #-}
 {-# LANGUAGE DuplicateRecordFields #-}
 {-# LANGUAGE UndecidableInstances #-}
+{-# LANGUAGE TemplateHaskell #-}
 
 module Cavil.Serve where
 
@@ -12,12 +13,22 @@ import Protolude hiding (Handler)
 import Servant
 import Servant.API.Generic
 import Servant.Server.Generic
+import GitHash
 
 siteRoutes :: SiteRoutes (AsServerT AppM)
 siteRoutes =
   SiteRoutes
     { _case = toServant . caseRoutes,
-      _ledger = toServant . ledgerRoutes
+      _ledger = toServant . ledgerRoutes,
+      _version = pure version
+    }
+
+version :: VersionSummary
+version =
+  let gi = $$tGitInfoCwd
+  in VersionSummary
+    { gitHash = toS $ giHash gi,
+      gitCommitDate = toS $ giCommitDate gi
     }
 
 -- Natural transformation from our custom handler monad to the servant monad.

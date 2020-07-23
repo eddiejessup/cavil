@@ -25,6 +25,7 @@ dependencies:
   - cryptohash-sha256
   - data-default
   - generic-optics
+  - githash
   - optics
   - optparse-applicative
   - postgresql-simple
