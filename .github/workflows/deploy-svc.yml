@@ -6,6 +6,7 @@ on:
       - master
     paths:
       - 'svc/*'
+      - '.github/workflows/deploy-svc.yml'
 
 defaults:
   run:
