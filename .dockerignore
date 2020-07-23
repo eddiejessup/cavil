@@ -1,0 +1,11 @@
+# Git.
+.git
+.gitignore
+
+# Docs.
+doc/
+README.md
+CHANGELOG.md
+
+# Development.
+hie.yaml

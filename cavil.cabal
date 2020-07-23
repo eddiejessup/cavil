@@ -1,0 +1,143 @@
+cabal-version: 1.12
+
+-- This file has been generated from package.yaml by hpack version 0.34.2.
+--
+-- see: https://github.com/sol/hpack
+
+name:           cavil
+version:        0.1.0.0
+synopsis:       Recorded, randomised decisions
+description:    See README at <https://github.com/eddiejessup/cavil#readme>
+homepage:       https://github.com/eddiejessup/cavil#readme
+bug-reports:    https://github.com/eddiejessup/cavil/issues
+maintainer:     Elliot Marsden <elliot.marsden@gmail.com>
+build-type:     Simple
+
+source-repository head
+  type: git
+  location: https://github.com/eddiejessup/cavil
+
+library
+  exposed-modules:
+      Cavil.Api
+      Cavil.Api.Case
+      Cavil.Api.Common
+      Cavil.Api.Ledger
+      Cavil.Event.Case
+      Cavil.Event.Common
+      Cavil.Event.Ledger
+      Cavil.Hashing
+      Cavil.Impl
+      Cavil.Impl.Case
+      Cavil.Impl.Common
+      Cavil.Impl.Ledger
+      Cavil.Serve
+      Cavil.Serve.Case
+      Cavil.Serve.Common
+      Cavil.Serve.Ledger
+  other-modules:
+      Paths_cavil
+  hs-source-dirs:
+      src
+  default-extensions: ConstraintKinds DataKinds DeriveAnyClass DeriveFoldable DeriveFunctor DeriveGeneric DeriveLift DeriveTraversable DerivingStrategies EmptyCase FlexibleContexts FlexibleInstances GeneralizedNewtypeDeriving InstanceSigs LambdaCase MultiParamTypeClasses MultiWayIf NamedFieldPuns NoImplicitPrelude OverloadedStrings ScopedTypeVariables StandaloneDeriving TupleSections TypeApplications TypeFamilies TypeOperators
+  ghc-options: -Wall -Wcompat -Wincomplete-record-updates -Wincomplete-uni-patterns -Wredundant-constraints -Wno-warnings-deprecations -Wno-incomplete-patterns -Wno-incomplete-uni-patterns -Wmissing-deriving-strategies
+  build-depends:
+      aeson
+    , base
+    , binary
+    , bytestring
+    , containers
+    , cryptohash-sha256
+    , data-default
+    , generic-optics
+    , optics
+    , optparse-applicative
+    , postgresql-simple
+    , protolude
+    , safe
+    , servant
+    , servant-server
+    , text
+    , time
+    , transformers
+    , unordered-containers
+    , uuid
+    , wai-cors
+    , wai-extra
+    , warp
+  default-language: Haskell2010
+
+executable app
+  main-is: Main.hs
+  other-modules:
+      Options
+      Paths_cavil
+  hs-source-dirs:
+      app
+  default-extensions: ConstraintKinds DataKinds DeriveAnyClass DeriveFoldable DeriveFunctor DeriveGeneric DeriveLift DeriveTraversable DerivingStrategies EmptyCase FlexibleContexts FlexibleInstances GeneralizedNewtypeDeriving InstanceSigs LambdaCase MultiParamTypeClasses MultiWayIf NamedFieldPuns NoImplicitPrelude OverloadedStrings ScopedTypeVariables StandaloneDeriving TupleSections TypeApplications TypeFamilies TypeOperators
+  ghc-options: -Wall -Wcompat -Wincomplete-record-updates -Wincomplete-uni-patterns -Wredundant-constraints -Wno-warnings-deprecations -Wno-incomplete-patterns -Wno-incomplete-uni-patterns -Wmissing-deriving-strategies
+  build-depends:
+      aeson
+    , base
+    , binary
+    , bytestring
+    , cavil
+    , containers
+    , cryptohash-sha256
+    , data-default
+    , generic-optics
+    , optics
+    , optparse-applicative
+    , postgresql-simple
+    , protolude
+    , safe
+    , servant
+    , servant-server
+    , text
+    , time
+    , transformers
+    , unordered-containers
+    , uuid
+    , wai-cors
+    , wai-extra
+    , warp
+  default-language: Haskell2010
+
+test-suite test
+  main-is: Main.hs
+  other-modules:
+      Paths_cavil
+  hs-source-dirs:
+      test
+  default-extensions: ConstraintKinds DataKinds DeriveAnyClass DeriveFoldable DeriveFunctor DeriveGeneric DeriveLift DeriveTraversable DerivingStrategies EmptyCase FlexibleContexts FlexibleInstances GeneralizedNewtypeDeriving InstanceSigs LambdaCase MultiParamTypeClasses MultiWayIf NamedFieldPuns NoImplicitPrelude OverloadedStrings ScopedTypeVariables StandaloneDeriving TupleSections TypeApplications TypeFamilies TypeOperators
+  ghc-options: -Wall -Wcompat -Wincomplete-record-updates -Wincomplete-uni-patterns -Wredundant-constraints -Wno-warnings-deprecations -Wno-incomplete-patterns -Wno-incomplete-uni-patterns -Wmissing-deriving-strategies
+  build-depends:
+      Cabal
+    , aeson
+    , base
+    , binary
+    , bytestring
+    , cavil
+    , containers
+    , cryptohash-sha256
+    , data-default
+    , generic-optics
+    , optics
+    , optparse-applicative
+    , postgresql-simple
+    , protolude
+    , safe
+    , servant
+    , servant-server
+    , tasty
+    , tasty-hunit
+    , text
+    , time
+    , transformers
+    , unordered-containers
+    , uuid
+    , wai-cors
+    , wai-extra
+    , warp
+  default-language: Haskell2010
+  type: exitcode-stdio-1.0
