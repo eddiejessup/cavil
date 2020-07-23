@@ -5,6 +5,10 @@ on:
     branches:
       - master
 
+defaults:
+  run:
+    working-directory: ./svc
+
 jobs:
   build:
     runs-on: ubuntu-latest
@@ -25,7 +29,6 @@ jobs:
         uses: aws-actions/amazon-ecr-login@v1
 
       - name: Build and push image
-        working-directory: ./svc
         id: build-push-image
         uses: whoan/docker-build-with-cache-action@v5
         with:
@@ -36,7 +39,6 @@ jobs:
           image_tag: ${{ github.sha }}
 
       - name: Render Amazon ECS task definition with image ID
-        working-directory: ./svc
         id: task-def
         uses: aws-actions/amazon-ecs-render-task-definition@v1
         with:
@@ -45,7 +47,6 @@ jobs:
           image: ${{ steps.build-push-image.outputs.FULL_IMAGE_NAME }}:${{ github.sha }}
 
       - name: Deploy Amazon ECS task definition
-        working-directory: ./svc
         uses: aws-actions/amazon-ecs-deploy-task-definition@v1
         timeout-minutes: 5
         with:
