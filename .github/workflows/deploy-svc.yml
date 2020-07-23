@@ -4,6 +4,8 @@ on:
   push:
     branches:
       - master
+    paths:
+      - 'svc/*'
 
 defaults:
   run:
@@ -37,12 +39,13 @@ jobs:
           registry: ${{ steps.login-ecr.outputs.registry }}
           image_name: cavil
           image_tag: ${{ github.sha }}
+          context: ./svc
 
       - name: Render Amazon ECS task definition with image ID
         id: task-def
         uses: aws-actions/amazon-ecs-render-task-definition@v1
         with:
-          task-definition: task-definition.json
+          task-definition: ./svc/task-definition.json
           container-name: cavil
           image: ${{ steps.build-push-image.outputs.FULL_IMAGE_NAME }}:${{ github.sha }}
 
