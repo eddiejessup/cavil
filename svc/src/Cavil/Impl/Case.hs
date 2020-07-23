@@ -5,8 +5,8 @@
 module Cavil.Impl.Case where
 
 import Cavil.Api.Case
-import Cavil.Event.Common
 import Cavil.Event.Case
+import Cavil.Event.Common
 import Cavil.Hashing
 import qualified Data.Binary as B
 import Data.Generics.Product.Typed

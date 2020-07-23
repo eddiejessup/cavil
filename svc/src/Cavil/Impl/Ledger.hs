@@ -66,8 +66,9 @@ summariseLedger ledgerLabel = do
   pure $
     LedgerSummary
       { label = getTyped @LedgerLabel agg,
-        records = toRecordSummary
-          <$> sortBy cmpRecordTime (getField @"records" agg)
+        records =
+          toRecordSummary
+            <$> sortBy cmpRecordTime (getField @"records" agg)
       }
   where
     cmpRecordTime ::

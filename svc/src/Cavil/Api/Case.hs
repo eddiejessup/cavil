@@ -4,8 +4,8 @@
 module Cavil.Api.Case where
 
 import Control.Monad.Fail (MonadFail (fail))
-import qualified Data.Time.Clock as T
 import qualified Data.Aeson as Ae
+import qualified Data.Time.Clock as T
 import Data.UUID (UUID)
 import Protolude
 import Servant

@@ -6,10 +6,10 @@
 module Cavil.Serve.Case where
 
 import Cavil.Api
-import Cavil.Api.Common
 import Cavil.Api.Case
-import Cavil.Event.Common
+import Cavil.Api.Common
 import Cavil.Event.Case
+import Cavil.Event.Common
 import Cavil.Impl.Case
 import Cavil.Serve.Common
 import Data.Aeson ((.=))
@@ -52,7 +52,7 @@ mapAggregateError caseLabel (AggregateErrorWithState aggState detail) =
               "Incoherent tokens in decision chain"
             DecisionAlreadyInvalidated ->
               "Multiple invalidations of decision"
-      in simpleClientError OurFault detailMsg ("caseLabel" .= caseLabel)
+       in simpleClientError OurFault detailMsg ("caseLabel" .= caseLabel)
     AggregateDuringRequest _ ->
       let detailMsg = case detail of
             CaseAlreadyExists ->
@@ -65,7 +65,7 @@ mapAggregateError caseLabel (AggregateErrorWithState aggState detail) =
               "Incoherent decision token"
             DecisionAlreadyInvalidated ->
               "Decision has already been invalidated"
-      in simpleClientError OurFault detailMsg ("caseLabel" .= caseLabel)
+       in simpleClientError OurFault detailMsg ("caseLabel" .= caseLabel)
 
 caseCreate ::
   (MonadIO m, MonadReader AppEnv m, MonadError ServerError m) =>

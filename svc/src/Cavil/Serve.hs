@@ -1,19 +1,19 @@
 {-# LANGUAGE BlockArguments #-}
 {-# LANGUAGE DuplicateRecordFields #-}
-{-# LANGUAGE UndecidableInstances #-}
 {-# LANGUAGE TemplateHaskell #-}
+{-# LANGUAGE UndecidableInstances #-}
 
 module Cavil.Serve where
 
 import Cavil.Api
 import Cavil.Serve.Case
-import Cavil.Serve.Ledger
 import Cavil.Serve.Common
+import Cavil.Serve.Ledger
+import GitHash
 import Protolude hiding (Handler)
 import Servant
 import Servant.API.Generic
 import Servant.Server.Generic
-import GitHash
 
 siteRoutes :: SiteRoutes (AsServerT AppM)
 siteRoutes =
@@ -26,10 +26,10 @@ siteRoutes =
 version :: VersionSummary
 version =
   let gi = $$tGitInfoCwd
-  in VersionSummary
-    { gitHash = toS $ giHash gi,
-      gitCommitDate = toS $ giCommitDate gi
-    }
+   in VersionSummary
+        { gitHash = toS $ giHash gi,
+          gitCommitDate = toS $ giCommitDate gi
+        }
 
 -- Natural transformation from our custom handler monad to the servant monad.
 appToHandler :: AppEnv -> AppM a -> Handler a

@@ -1,5 +1,6 @@
 {-# LANGUAGE BlockArguments #-}
 {-# LANGUAGE DuplicateRecordFields #-}
+{-# LANGUAGE TypeApplications #-}
 
 module Cavil.Serve.Ledger where
 
@@ -39,14 +40,14 @@ mapAggregateError ledgerLabel (AggregateErrorWithState aggState detail) =
               "Multiple ledger creation events"
             NoSuchLedger ->
               "Ledger events before ledger creation"
-      in simpleClientError OurFault detailMsg ("ledgerLabel" .= ledgerLabel)
+       in simpleClientError OurFault detailMsg ("ledgerLabel" .= ledgerLabel)
     AggregateDuringRequest _ ->
       let detailMsg = case detail of
             LedgerAlreadyExists ->
               "Ledger already exists"
             NoSuchLedger ->
               "No such ledger found"
-      in simpleClientError BadRequest detailMsg ("ledgerLabel" .= ledgerLabel)
+       in simpleClientError BadRequest detailMsg ("ledgerLabel" .= ledgerLabel)
 
 ledgerCreate ::
   (MonadIO m, MonadReader AppEnv m, MonadError ServerError m) =>
