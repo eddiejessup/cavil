@@ -43,3 +43,17 @@ clientErrorAsServantError (ClientError reason msg) =
         OurFault -> err500
         BadRequest -> err400
    in respType {errBody = bsFromAeObject msg}
+
+simpleClientError :: ClientErrorReason -> Text -> HM.HashMap Text Ae.Value -> ClientError
+simpleClientError reason detail vals =
+  ClientError reason $
+    mconcat
+      [ "errorType" .= errType,
+        "errorDetail" .= detail,
+        vals
+      ]
+  where
+    errType :: Text
+    errType = case reason of
+      OurFault -> "Invalid existing data"
+      BadRequest -> "Bad request"

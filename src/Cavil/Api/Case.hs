@@ -3,11 +3,9 @@
 
 module Cavil.Api.Case where
 
-import Cavil.Api.Common
 import Control.Monad.Fail (MonadFail (fail))
-import Data.Aeson ((.=))
+import qualified Data.Time.Clock as T
 import qualified Data.Aeson as Ae
-import qualified Data.HashMap.Strict as HM
 import Data.UUID (UUID)
 import Protolude
 import Servant
@@ -19,7 +17,7 @@ data CaseRoutes route = CaseRoutes
     _caseSummarise :: route :- Capture "label" CaseLabel :> Get '[JSON] CaseSummary,
     _caseDecide :: route :- Capture "label" CaseLabel :> Capture "decisionToken" DecisionToken :> Put '[JSON] Variant,
     _caseDecisionInvalidate :: route :- Capture "label" CaseLabel :> Capture "decisionToken" DecisionToken :> "invalidate" :> ReqBody '[JSON] InvalidateDecisionRequest :> Post '[JSON] NoContent,
-    _casesSummarise :: route :- Get '[JSON] [CaseSummariesItem]
+    _casesSummarise :: route :- Get '[JSON] [CaseSummary]
   }
   deriving stock (Generic)
 
@@ -98,44 +96,9 @@ data CaseSummary = CaseSummary
   deriving stock (Generic)
   deriving anyclass (Ae.ToJSON)
 
-data CaseSummariesItem
-  = FailedCaseSummariesItem FailedCaseSummary
-  | SucceededCaseSummariesItem CaseSummary
-  deriving stock (Generic)
-
-data FailedCaseSummary = FailedCaseSummary
-  { label :: CaseLabel,
-    error :: ClientError
-  }
-  deriving stock (Generic)
-
-instance Ae.ToJSON FailedCaseSummary where
-  toJSON v =
-    Ae.object
-      [ ("label" :: Text) .= getField @"label" v,
-        "error" .= getField @"error" v
-      ]
-
-instance Ae.ToJSON CaseSummariesItem where
-  toJSON v =
-    let (obj, status) = case v of
-          SucceededCaseSummariesItem caseSummary ->
-            case Ae.toJSON caseSummary of
-              Ae.Object obj_ ->
-                (obj_, "Success")
-              e ->
-                panic $ "Unexpected encoding of case summary: " <> show e
-          FailedCaseSummariesItem failedSummary ->
-            case Ae.toJSON failedSummary of
-              Ae.Object obj_ ->
-                (obj_, "Failure")
-              e ->
-                panic $ "Unexpected encoding of failed case summary: " <> show e
-     in Ae.Object $ HM.insert "fetchStatus" (Ae.String status) obj
-
 data DecisionSummary = DecisionSummary
   { token :: DecisionToken,
-    decisionTimeUTC :: Text,
+    decisionTime :: T.UTCTime,
     variant :: Variant,
     isValid :: Bool,
     invalidationReason :: Maybe Text

@@ -6,6 +6,7 @@ module Cavil.Serve where
 
 import Cavil.Api
 import Cavil.Serve.Case
+import Cavil.Serve.Ledger
 import Cavil.Serve.Common
 import Protolude hiding (Handler)
 import Servant
@@ -15,7 +16,8 @@ import Servant.Server.Generic
 siteRoutes :: SiteRoutes (AsServerT AppM)
 siteRoutes =
   SiteRoutes
-    { _case = toServant . caseRoutes
+    { _case = toServant . caseRoutes,
+      _ledger = toServant . ledgerRoutes
     }
 
 -- Natural transformation from our custom handler monad to the servant monad.

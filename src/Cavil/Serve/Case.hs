@@ -37,8 +37,8 @@ data InvalidateDecisionError
   | InvalidateDecisionWriteError WriteError
   deriving stock (Generic)
 
-mapAggregateError :: AggregateErrorWithState CaseAggregateError -> ClientError
-mapAggregateError (AggregateErrorWithState aggState detail) =
+mapAggregateError :: CaseLabel -> AggregateErrorWithState CaseAggregateError -> ClientError
+mapAggregateError caseLabel (AggregateErrorWithState aggState detail) =
   case aggState of
     AggregateBeforeRequest _ ->
       let detailMsg = case detail of
@@ -52,11 +52,7 @@ mapAggregateError (AggregateErrorWithState aggState detail) =
               "Incoherent tokens in decision chain"
             DecisionAlreadyInvalidated ->
               "Multiple invalidations of decision"
-       in ClientError OurFault $
-            mconcat
-              [ "errorType" .= ("Invalid existing data" :: Text),
-                "errorDetail" .= (detailMsg :: Text)
-              ]
+      in simpleClientError OurFault detailMsg ("caseLabel" .= caseLabel)
     AggregateDuringRequest _ ->
       let detailMsg = case detail of
             CaseAlreadyExists ->
@@ -69,11 +65,7 @@ mapAggregateError (AggregateErrorWithState aggState detail) =
               "Incoherent decision token"
             DecisionAlreadyInvalidated ->
               "Decision has already been invalidated"
-       in ClientError BadRequest $
-            mconcat
-              [ "errorType" .= ("Bad request" :: Text),
-                "errorDetail" .= (detailMsg :: Text)
-              ]
+      in simpleClientError OurFault detailMsg ("caseLabel" .= caseLabel)
 
 caseCreate ::
   (MonadIO m, MonadReader AppEnv m, MonadError ServerError m) =>
@@ -85,7 +77,7 @@ caseCreate _user caseLabel ccReq =
   runExceptT (createCase caseLabel (getTyped @NrVariants ccReq)) >>= \case
     Left e -> throwError $
       clientErrorAsServantError $ case e of
-        CreateCaseAggregateError aggE -> mapAggregateError aggE
+        CreateCaseAggregateError aggE -> mapAggregateError caseLabel aggE
         CreateCaseWriteError we -> mapWriteError we
     Right () ->
       pure NoContent
@@ -99,7 +91,7 @@ caseSummarise _user caseLabel =
   runExceptT (summariseCase caseLabel) >>= \case
     Left e -> throwError $
       clientErrorAsServantError $ case e of
-        CaseSummaryAggregateError aggE -> mapAggregateError aggE
+        CaseSummaryAggregateError aggE -> mapAggregateError caseLabel aggE
     Right v ->
       pure v
 
@@ -114,7 +106,7 @@ caseDecide _user caseLabel tok =
     Left e ->
       throwError $
         clientErrorAsServantError $ case e of
-          DecideAggregateError aggE -> mapAggregateError aggE
+          DecideAggregateError aggE -> mapAggregateError caseLabel aggE
           DecideWriteError we -> mapWriteError we
     Right v -> pure v
 
@@ -130,25 +122,16 @@ caseDecisionInvalidate _user caseLabel tok invalidateReq =
     Left e ->
       throwError $
         clientErrorAsServantError $ case e of
-          InvalidateDecisionAggregateError aggE -> mapAggregateError aggE
+          InvalidateDecisionAggregateError aggE -> mapAggregateError caseLabel aggE
           InvalidateDecisionWriteError we -> mapWriteError we
     Right () -> pure NoContent
 
 casesSummarise ::
-  (MonadIO m, MonadReader AppEnv m) =>
+  (MonadIO m, MonadReader AppEnv m, MonadError ServerError m) =>
   User ->
-  m [CaseSummariesItem]
+  m [CaseSummary]
 casesSummarise _user =
-  getAllCaseLabels >>= mapM \caseLabel ->
-    runExceptT (summariseCase caseLabel) <&> \case
-      Left (CaseSummaryAggregateError aggE) ->
-        FailedCaseSummariesItem $
-          FailedCaseSummary
-            { label = caseLabel,
-              error = mapAggregateError aggE
-            }
-      Right v ->
-        SucceededCaseSummariesItem v
+  getAllCaseLabels >>= mapM (caseSummarise _user)
 
 caseRoutes :: User -> CaseRoutes (AsServerT AppM)
 caseRoutes u =

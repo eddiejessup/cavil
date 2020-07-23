@@ -13,7 +13,6 @@ import Data.Generics.Product.Typed
 import Data.Generics.Sum (AsType, injectTyped)
 import qualified Data.List as List
 import qualified Data.Time as T
-import qualified Data.Time.Format.ISO8601 as T
 import Data.UUID (UUID)
 import qualified Data.UUID as UUID
 import qualified Database.PostgreSQL.Simple as PG
@@ -96,19 +95,19 @@ summariseCase caseLabel = do
       Ordering
     cmpDecisionTime (_, a) (_, b) = getField @"decisionTime" a `compare` getField @"decisionTime" b
 
-toDecisionSummary :: (DecisionToken, DecisionAggregate) -> DecisionSummary
-toDecisionSummary (token, decAgg) =
-  DecisionSummary
-    { token,
-      decisionTimeUTC = toS $ T.iso8601Show $ getField @"decisionTime" decAgg,
-      variant = getTyped @Variant decAgg,
-      isValid = case getTyped @DecisionValidity decAgg of
-        DecisionIsValid -> True
-        DecisionIsNotValid _ -> False,
-      invalidationReason = case getTyped @DecisionValidity decAgg of
-        DecisionIsValid -> Nothing
-        DecisionIsNotValid reason -> Just reason
-    }
+    toDecisionSummary :: (DecisionToken, DecisionAggregate) -> DecisionSummary
+    toDecisionSummary (token, decAgg) =
+      DecisionSummary
+        { token,
+          decisionTime = getField @"decisionTime" decAgg,
+          variant = getTyped @Variant decAgg,
+          isValid = case getTyped @DecisionValidity decAgg of
+            DecisionIsValid -> True
+            DecisionIsNotValid _ -> False,
+          invalidationReason = case getTyped @DecisionValidity decAgg of
+            DecisionIsValid -> Nothing
+            DecisionIsNotValid reason -> Just reason
+        }
 
 decideCase ::
   ( MonadIO m,

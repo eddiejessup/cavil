@@ -17,6 +17,64 @@ import qualified Database.PostgreSQL.Simple.ToField as PG
 import Optics
 import Protolude hiding (to, (%))
 
+-- Event.
+
+data CaseEvent
+  = CaseCreated CaseCreatedEvent
+  | DecisionMade DecisionMadeEvent
+  | DecisionInvalidated DecisionInvalidatedEvent
+  deriving stock (Generic)
+  deriving anyclass (Ae.ToJSON, Ae.FromJSON)
+
+instance PG.FromField CaseEvent where
+  fromField = PG.fromJSONField
+
+instance PG.ToField CaseEvent where
+  toField = PG.toJSONField
+
+data CaseCreatedEvent = CaseCreatedEvent
+  { caseLabel :: CaseLabel,
+    nrVariants :: NrVariants
+  }
+  deriving stock (Generic)
+  deriving anyclass (Ae.ToJSON, Ae.FromJSON)
+
+data DecisionMadeEvent = DecisionMadeEvent
+  { decisionToken :: DecisionToken,
+    variant :: Variant,
+    decisionTime :: UTCTime
+  }
+  deriving stock (Generic)
+  deriving anyclass (Ae.ToJSON, Ae.FromJSON)
+
+data DecisionInvalidatedEvent = DecisionInvalidatedEvent
+  { decisionToken :: DecisionToken,
+    reason :: Text
+  }
+  deriving stock (Generic)
+  deriving anyclass (Ae.ToJSON, Ae.FromJSON)
+
+-- /Event.
+
+-- Aggregate.
+
+data CaseAggregate = CaseAggregate
+  { caseLabel :: CaseLabel,
+    nrVariants :: NrVariants,
+    decisions :: DecisionsMap
+  }
+  deriving stock (Generic)
+
+initialCaseAggregate :: CaseCreatedEvent -> CaseAggregate
+initialCaseAggregate ev =
+  CaseAggregate
+    { caseLabel = ev ^. typed @CaseLabel,
+      nrVariants = ev ^. typed @NrVariants,
+      decisions = []
+    }
+
+type DecisionsMap = [(DecisionToken, DecisionAggregate)]
+
 data DecisionAggregate = DecisionAggregate
   { decisionTime :: UTCTime,
     variant :: Variant,
@@ -36,15 +94,9 @@ initialDecisionAggregate ev =
       status = DecisionIsValid
     }
 
-initialCaseAggregate :: CaseCreatedEvent -> CaseAggregate
-initialCaseAggregate ev =
-  CaseAggregate
-    { caseLabel = ev ^. typed @CaseLabel,
-      nrVariants = ev ^. typed @NrVariants,
-      decisions = []
-    }
+-- /Aggregate.
 
-type DecisionsMap = [(DecisionToken, DecisionAggregate)]
+-- Folding events.
 
 -- | Do not filter to only valid decisions, or the token chain will lose
 -- coherence.
@@ -96,47 +148,9 @@ foldCaseEvent aggState mayAgg = \case
     aggError e =
       injectTyped $ AggregateErrorWithState aggState e
 
-data CaseEvent
-  = CaseCreated CaseCreatedEvent
-  | DecisionMade DecisionMadeEvent
-  | DecisionInvalidated DecisionInvalidatedEvent
-  deriving stock (Generic)
-  deriving anyclass (Ae.ToJSON, Ae.FromJSON)
+-- /Folding events.
 
-instance PG.FromField CaseEvent where
-  fromField = PG.fromJSONField
-
-instance PG.ToField CaseEvent where
-  toField = PG.toJSONField
-
-data CaseCreatedEvent = CaseCreatedEvent
-  { caseLabel :: CaseLabel,
-    nrVariants :: NrVariants
-  }
-  deriving stock (Generic)
-  deriving anyclass (Ae.ToJSON, Ae.FromJSON)
-
-data DecisionMadeEvent = DecisionMadeEvent
-  { decisionToken :: DecisionToken,
-    variant :: Variant,
-    decisionTime :: UTCTime
-  }
-  deriving stock (Generic)
-  deriving anyclass (Ae.ToJSON, Ae.FromJSON)
-
-data DecisionInvalidatedEvent = DecisionInvalidatedEvent
-  { decisionToken :: DecisionToken,
-    reason :: Text
-  }
-  deriving stock (Generic)
-  deriving anyclass (Ae.ToJSON, Ae.FromJSON)
-
-data CaseAggregate = CaseAggregate
-  { caseLabel :: CaseLabel,
-    nrVariants :: NrVariants,
-    decisions :: DecisionsMap
-  }
-  deriving stock (Generic)
+-- Errors.
 
 data CaseAggregateError
   = CaseAlreadyExists
@@ -146,6 +160,10 @@ data CaseAggregateError
   | DecisionAlreadyInvalidated
   deriving stock (Generic, Show)
 
+-- /Errors.
+
+-- Projection.
+
 caseLabelsFromEvents :: [CaseEvent] -> [CaseLabel]
 caseLabelsFromEvents = foldl' go []
   where
@@ -153,6 +171,10 @@ caseLabelsFromEvents = foldl' go []
       CaseCreated ccEvt -> caseLabels <> [getTyped @CaseLabel ccEvt]
       DecisionMade _ -> caseLabels
       DecisionInvalidated _ -> caseLabels
+
+-- /Projection.
+
+-- Instance.
 
 instance CavilEvent CaseEvent where
   type EvtAggregate CaseEvent = CaseAggregate
@@ -162,3 +184,5 @@ instance CavilEvent CaseEvent where
   eventType _pxy = "case"
 
   foldEvt = foldCaseEvent
+
+-- /Instance.

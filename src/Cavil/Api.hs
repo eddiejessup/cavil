@@ -3,6 +3,7 @@
 module Cavil.Api where
 
 import Cavil.Api.Case
+import Cavil.Api.Ledger
 import Protolude
 import Servant
 import Servant.API.Generic
@@ -14,7 +15,8 @@ type AuthRealm = "Cavil cases"
 type AuthPrefix = BasicAuth AuthRealm User
 
 data SiteRoutes route = SiteRoutes
-  { _case :: route :- AuthPrefix :> "case" :> ToServant CaseRoutes AsApi
+  { _case :: route :- AuthPrefix :> "case" :> ToServant CaseRoutes AsApi,
+    _ledger :: route :- AuthPrefix :> "ledger" :> ToServant LedgerRoutes AsApi
   }
   deriving stock (Generic)
 

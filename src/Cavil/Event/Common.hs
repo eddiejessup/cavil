@@ -37,7 +37,7 @@ getAggregate ::
   AggregateState ->
   Proxy evt ->
   m (Maybe (EvtAggregate evt), AggregateValidatedToken)
-getAggregate aggState _pxy = do
+getAggregate aggState pxy = do
   let aggId = aggIdFromState aggState
   pgConn <- gview (typed @PG.Connection)
   evts <-
@@ -55,13 +55,13 @@ getAggregate aggState _pxy = do
             ORDER BY
               sequence_nr ASC
           |]
-        ("case" :: Text, aggId)
+        (eventType pxy, aggId)
   agg <- foldAllEventsIntoAggregate aggState (PG.fromOnly <$> evts)
   pure (agg, AggregateValidatedToken aggId)
 
 getAllEvents ::
   forall r m evt.
-  (MonadIO m, MonadReader r m, HasType PG.Connection r, PG.FromField evt) =>
+  (MonadIO m, MonadReader r m, HasType PG.Connection r, CavilEvent evt) =>
   m [evt]
 getAllEvents = do
   pgConn <- gview (typed @PG.Connection)
@@ -79,7 +79,7 @@ getAllEvents = do
           ORDER BY
             sequence_nr ASC
         |]
-        (PG.Only @Text "case")
+        (PG.Only (eventType (Proxy @evt)))
   pure $ PG.fromOnly <$> evts
 
 insertEventsValidated ::
