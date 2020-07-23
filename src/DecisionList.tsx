@@ -106,7 +106,7 @@ export const DecisionList: React.FunctionComponent<DecisionListProps> = ({
                       key={decisionSummary.token}
                       className={decisionSummary.isValid ? "" : classes.invalid}
                     >
-                      <TableCell>{decisionSummary.decisionTimeUTC}</TableCell>
+                      <TableCell>{decisionSummary.decisionTime}</TableCell>
                       <TableCell>{decisionSummary.variant}</TableCell>
                       <TableCell>{decisionSummary.token}</TableCell>
                       <TableCell>

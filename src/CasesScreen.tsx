@@ -13,7 +13,7 @@ import {
 } from "@material-ui/core";
 import { Alert } from "@material-ui/lab";
 import {
-  CaseSummariesItem,
+  CaseSummary,
   ClientError,
   renderClientError,
   fallBackErrorMsg,
@@ -40,7 +40,7 @@ export const CasesScreen: React.FunctionComponent<CasesScreenProps> = (
   const classes = useStyles();
 
   const [fetchedCaseSummaries, setFetchedCaseSummaries] = React.useState<
-    FetchState<Array<CaseSummariesItem>>
+    FetchState<Array<CaseSummary>>
   >(notFetched());
 
   const onCasesChanged = () => {
@@ -51,7 +51,7 @@ export const CasesScreen: React.FunctionComponent<CasesScreenProps> = (
     const fetchData = async () => {
       if (fetchedCaseSummaries.kind === "notFetched") {
         await casesSummarise(
-          (value: Array<CaseSummariesItem>) => {
+          (value: Array<CaseSummary>) => {
             setFetchedCaseSummaries(fetchSuccess(value));
           },
           (errObj: ClientError) => {
@@ -99,7 +99,9 @@ export const CasesScreen: React.FunctionComponent<CasesScreenProps> = (
 
               {fetchedCaseSummaries.kind === "fetchSuccess" && (
                 <Grid item>
-                  <CaseSummariesTable caseSummaries={fetchedCaseSummaries.value} />
+                  <CaseSummariesTable
+                    caseSummaries={fetchedCaseSummaries.value}
+                  />
                 </Grid>
               )}
             </Grid>
@@ -125,10 +127,12 @@ export const CasesScreen: React.FunctionComponent<CasesScreenProps> = (
 };
 
 interface CaseSummariesTableProps {
-  caseSummaries: Array<CaseSummariesItem>;
+  caseSummaries: Array<CaseSummary>;
 }
 
-const CaseSummariesTable: React.FunctionComponent<CaseSummariesTableProps> = (props) => {
+const CaseSummariesTable: React.FunctionComponent<CaseSummariesTableProps> = (
+  props
+) => {
   const { url } = useRouteMatch();
 
   return (
@@ -136,7 +140,6 @@ const CaseSummariesTable: React.FunctionComponent<CaseSummariesTableProps> = (pr
       <TableHead>
         <TableRow>
           <TableCell>Label</TableCell>
-          <TableCell>Status</TableCell>
           <TableCell>Number of variants</TableCell>
           <TableCell>Number of decisions</TableCell>
           <TableCell>Last decision (UTC)</TableCell>
@@ -144,54 +147,30 @@ const CaseSummariesTable: React.FunctionComponent<CaseSummariesTableProps> = (pr
         </TableRow>
       </TableHead>
       <TableBody>
-        {props.caseSummaries.map(item => {
-          switch (item.fetchStatus) {
-            case "Success":
-              const validDecisions = item.decisions.filter((d) => d.isValid);
-              const nrValidDecisions = validDecisions.length;
-              const lastValidDecision = validDecisions[nrValidDecisions - 1];
-              return (
-                <TableRow key={item.label}>
-                  <TableCell>
-                    <MaterialLink
-                      component={RouterLink}
-                      to={`${url}/${item.label}`}
-                    >
-                      {item.label}
-                    </MaterialLink>
-                  </TableCell>
-                  <TableCell>Created</TableCell>
-                  <TableCell>{item.nrVariants}</TableCell>
-                  <TableCell>{nrValidDecisions}</TableCell>
-                  <TableCell>
-                    {lastValidDecision ? lastValidDecision.decisionTimeUTC : "-"}
-                  </TableCell>
-                  <TableCell>
-                    {lastValidDecision ? lastValidDecision.variant : "-"}
-                  </TableCell>
-                </TableRow>
-              );
-            case "Failure":
-              return (
-                <TableRow key={item.label}>
-                  <TableCell>
-                    <MaterialLink
-                      component={RouterLink}
-                      to={`${url}/${item.label}`}
-                    >
-                      {item.label}
-                    </MaterialLink>
-                  </TableCell>
-                  <TableCell>{renderClientError(item.error)}</TableCell>
-                  <TableCell>-</TableCell>
-                  <TableCell>-</TableCell>
-                  <TableCell>-</TableCell>
-                  <TableCell>-</TableCell>
-                </TableRow>
-              );
-            default:
-              return null
-          }
+        {props.caseSummaries.map((item) => {
+          const validDecisions = item.decisions.filter((d) => d.isValid);
+          const nrValidDecisions = validDecisions.length;
+          const lastValidDecision = validDecisions[nrValidDecisions - 1];
+          return (
+            <TableRow key={item.label}>
+              <TableCell>
+                <MaterialLink
+                  component={RouterLink}
+                  to={`${url}/${item.label}`}
+                >
+                  {item.label}
+                </MaterialLink>
+              </TableCell>
+              <TableCell>{item.nrVariants}</TableCell>
+              <TableCell>{nrValidDecisions}</TableCell>
+              <TableCell>
+                {lastValidDecision ? lastValidDecision.decisionTime : "-"}
+              </TableCell>
+              <TableCell>
+                {lastValidDecision ? lastValidDecision.variant : "-"}
+              </TableCell>
+            </TableRow>
+          );
         })}
       </TableBody>
     </Table>

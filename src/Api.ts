@@ -17,7 +17,7 @@ export interface CaseSummary {
 
 export interface DecisionSummary {
   token: DecisionToken;
-  decisionTimeUTC: string;
+  decisionTime: string;
   variant: number;
   isValid: boolean;
   invalidationReason?: string;
@@ -27,18 +27,6 @@ export interface ClientError {
   errorType: string;
   errorDetail: string;
 }
-
-export interface FailedCaseSummariesItem {
-  fetchStatus: "Failure";
-  label: CaseLabel;
-  error: ClientError;
-}
-
-export interface SucceededCaseSummariesItem extends CaseSummary {
-  fetchStatus: "Success";
-}
-
-export type CaseSummariesItem = FailedCaseSummariesItem | SucceededCaseSummariesItem
 
 export const renderClientError = (err: ClientError) =>
   `${err.errorType}: ${err.errorDetail}`;
@@ -114,7 +102,7 @@ export const caseDecisionInvalidate = async (
   );
 
 export const casesSummarise = async (
-  onSuccess: (v: Array<CaseSummariesItem>) => void,
+  onSuccess: (v: Array<CaseSummary>) => void,
   onClientError: (err: ClientError) => void,
   onOtherError: (err: Error) => void
 ) => {
@@ -167,7 +155,7 @@ const fetchCavil = async (
     const res = await fetchJSON(`${API_BASE_URL}/${path}`, opts);
     if (res.status === 200) {
       onSuccess(res);
-    } else if (res.status === 400) {
+    } else if ([400, 500].includes(res.status)) {
       const errObj = await res.json();
       onClientError(errObj);
     } else {
