@@ -95,7 +95,8 @@ insertEventsValidated valAggId curAgg evts = do
   pure newAgg
 
 insertEvents ::
-  (MonadIO m, MonadError e m, AsType WriteError e, MonadReader r m, HasType PG.Connection r, PG.ToField evt) =>
+  forall e r m evt.
+  (MonadIO m, MonadError e m, AsType WriteError e, MonadReader r m, HasType PG.Connection r, CavilEvent evt) =>
   AggregateValidatedToken ->
   [evt] ->
   m ()
@@ -108,7 +109,7 @@ insertEvents valAggId evts = do
           pgConn
           [sql| INSERT INTO event (event_type, aggregate_id, data) VALUES (?, ?, ?)|]
           ( List.zip3
-              (repeat @Text "case")
+              (repeat (eventType (Proxy @evt)))
               (repeat (validatedAggId valAggId))
               evts
           )
