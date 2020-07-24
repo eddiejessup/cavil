@@ -1,8 +1,8 @@
 import React from "react";
 import { Container, Grid, Button, TextField } from "@material-ui/core";
-import { useStyles } from "./Style";
-import { Title } from "./Common";
-import { setAuth } from "./Api";
+import { useStyles } from "../Style";
+import { Title } from "../Common";
+import { setAuth } from "../../Api";
 
 interface LoginScreenProps {}
 

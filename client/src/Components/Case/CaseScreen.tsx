@@ -8,8 +8,8 @@ import {
   renderClientError,
   fallBackErrorMsg,
   caseSummarise,
-} from "./Api";
-import { useStyles } from "./Style";
+} from "../../Api";
+import { useStyles } from "../Style";
 import {
   Title,
   FetchState,
@@ -17,7 +17,7 @@ import {
   notFetched,
   fetchError,
   fetchSuccess,
-} from "./Common";
+} from "../Common";
 import { NewDecision } from "./NewDecision";
 import { DecisionList } from "./DecisionList";
 import { useParams } from "react-router-dom";

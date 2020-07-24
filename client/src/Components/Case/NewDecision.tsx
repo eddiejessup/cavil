@@ -7,9 +7,9 @@ import {
   renderClientError,
   fallBackErrorMsg,
   caseDecide,
-} from "./Api";
-import { useStyles } from "./Style";
-import { SubTitle, FetchState } from "./Common";
+} from "../../Api";
+import { useStyles } from "../Style";
+import { SubTitle, FetchState } from "../Common";
 
 export interface NewDecisionProps {
   fetchedCaseSummary: FetchState<CaseSummary>;

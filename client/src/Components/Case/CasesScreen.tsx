@@ -18,9 +18,8 @@ import {
   renderClientError,
   fallBackErrorMsg,
   casesSummarise,
-} from "./Api";
-import { NewCaseForm } from "./NewCase";
-import { useStyles } from "./Style";
+} from "../../Api";
+import { useStyles } from "../Style";
 import {
   Title,
   SubTitle,
@@ -29,7 +28,8 @@ import {
   notFetched,
   fetchError,
   fetchSuccess,
-} from "./Common";
+} from "../Common";
+import { NewCaseForm } from "./NewCase";
 import { Link as RouterLink, useRouteMatch } from "react-router-dom";
 
 interface CasesScreenProps {}

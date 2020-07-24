@@ -24,9 +24,9 @@ import {
   renderClientError,
   fallBackErrorMsg,
   caseDecisionInvalidate,
-} from "./Api";
-import { useStyles } from "./Style";
-import { SubTitle, FetchState } from "./Common";
+} from "../../Api";
+import { useStyles } from "../Style";
+import { SubTitle, FetchState } from "../Common";
 
 export interface DecisionListProps {
   fetchedCaseSummary: FetchState<CaseSummary>;

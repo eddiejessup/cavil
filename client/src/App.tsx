@@ -19,11 +19,11 @@ import {
 import MenuIcon from "@material-ui/icons/Menu";
 import FolderIcon from "@material-ui/icons/Folder";
 import AccountBoxIcon from "@material-ui/icons/AccountBox";
-import { useStyles } from "./Style";
-import { CasesScreen } from "./CasesScreen";
-import { CaseScreen } from "./CaseScreen";
-import { LoginScreen } from "./LoginScreen";
-import { ListItemLink } from "./ListItemLink";
+import { useStyles } from "./Components/Style";
+import { CasesScreen } from "./Components/Case/CasesScreen";
+import { CaseScreen } from "./Components/Case/CaseScreen";
+import { LoginScreen } from "./Components/Login/LoginScreen";
+import { ListItemLink } from "./Components/ListItemLink";
 
 export const App: React.FunctionComponent<{}> = (props) => {
   const [mobileDrawerOpen, setMobileDrawerOpen] = React.useState(false);
