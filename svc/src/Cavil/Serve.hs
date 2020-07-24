@@ -9,7 +9,7 @@ import Cavil.Api
 import Cavil.Serve.Case
 import Cavil.Serve.Common
 import Cavil.Serve.Ledger
-import GitHash
+import qualified Distribution.PackageDescription.TH as P
 import Protolude hiding (Handler)
 import Servant
 import Servant.API.Generic
@@ -23,13 +23,8 @@ siteRoutes =
       _version = pure version
     }
 
-version :: VersionSummary
-version =
-  let gi = $$tGitInfoCwd
-   in VersionSummary
-        { gitHash = toS $ giHash gi,
-          gitCommitDate = toS $ giCommitDate gi
-        }
+version :: Version
+version = Version $(P.packageVariable (P.pkgVersion . P.package))
 
 -- Natural transformation from our custom handler monad to the servant monad.
 appToHandler :: AppEnv -> AppM a -> Handler a

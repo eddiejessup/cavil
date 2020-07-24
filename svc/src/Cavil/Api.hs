@@ -18,16 +18,12 @@ type AuthPrefix = BasicAuth AuthRealm User
 data SiteRoutes route = SiteRoutes
   { _case :: route :- AuthPrefix :> "case" :> ToServant CaseRoutes AsApi,
     _ledger :: route :- AuthPrefix :> "ledger" :> ToServant LedgerRoutes AsApi,
-    _version :: route :- "version" :> Get '[JSON] VersionSummary
+    _version :: route :- "version" :> Get '[JSON] Version
   }
   deriving stock (Generic)
 
-data VersionSummary = VersionSummary
-  { gitHash :: Text,
-    gitCommitDate :: Text
-  }
-  deriving stock (Generic)
-  deriving anyclass (Ae.ToJSON)
+newtype Version = Version { unVersion :: Text }
+  deriving newtype (Ae.ToJSON)
 
 siteApi :: Proxy (ToServantApi SiteRoutes)
 siteApi = genericApi (Proxy :: Proxy SiteRoutes)

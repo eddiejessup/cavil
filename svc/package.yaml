@@ -21,11 +21,11 @@ dependencies:
   - base
   - binary
   - bytestring
+  - cabal-file-th
   - containers
   - cryptohash-sha256
   - data-default
   - generic-optics
-  - githash
   - optics
   - optparse-applicative
   - postgresql-simple

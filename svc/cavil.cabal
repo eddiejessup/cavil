@@ -5,7 +5,7 @@ cabal-version: 1.12
 -- see: https://github.com/sol/hpack
 
 name:           cavil
-version:        0.1.0.0
+version:        0.1.0.1
 synopsis:       Recorded, randomised decisions
 description:    See README at <https://github.com/eddiejessup/cavil#readme>
 homepage:       https://github.com/eddiejessup/cavil#readme
@@ -46,11 +46,11 @@ library
     , base
     , binary
     , bytestring
+    , cabal-file-th
     , containers
     , cryptohash-sha256
     , data-default
     , generic-optics
-    , githash
     , optics
     , optparse-applicative
     , postgresql-simple
@@ -82,12 +82,12 @@ executable app
     , base
     , binary
     , bytestring
+    , cabal-file-th
     , cavil
     , containers
     , cryptohash-sha256
     , data-default
     , generic-optics
-    , githash
     , optics
     , optparse-applicative
     , postgresql-simple
@@ -119,12 +119,12 @@ test-suite test
     , base
     , binary
     , bytestring
+    , cabal-file-th
     , cavil
     , containers
     , cryptohash-sha256
     , data-default
     , generic-optics
-    , githash
     , optics
     , optparse-applicative
     , postgresql-simple
