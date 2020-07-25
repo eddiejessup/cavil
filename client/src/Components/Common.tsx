@@ -1,5 +1,6 @@
 import React from "react";
 import { Typography } from "@material-ui/core";
+import { parseISO, format } from "date-fns";
 
 export const Title: React.FunctionComponent<{}> = (props) => (
   <Typography component="h2" variant="h5" color="primary" gutterBottom>
@@ -43,3 +44,8 @@ export const fetchSuccess: <V>(value: V) => FetchState<V> = (value) => ({
   kind: "fetchSuccess",
   value,
 });
+
+export const formatISOString: (t: string) => string = (t) => {
+  const dt = parseISO(t);
+  return format(dt, "eee yyyy/MM/dd HH:mm OOO");
+};

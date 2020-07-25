@@ -26,7 +26,7 @@ import {
   caseDecisionInvalidate,
 } from "../../Api";
 import { useStyles } from "../Style";
-import { SubTitle, FetchState } from "../Common";
+import { SubTitle, FetchState, formatISOString } from "../Common";
 
 export interface DecisionListProps {
   fetchedCaseSummary: FetchState<CaseSummary>;
@@ -107,7 +107,9 @@ export const DecisionList: React.FunctionComponent<DecisionListProps> = ({
                       className={decisionSummary.isValid ? "" : classes.invalid}
                     >
                       <TableCell>{decisionSummary.id}</TableCell>
-                      <TableCell>{decisionSummary.decisionTime}</TableCell>
+                      <TableCell>
+                        {formatISOString(decisionSummary.decisionTime)}
+                      </TableCell>
                       <TableCell>{decisionSummary.variant}</TableCell>
                       <TableCell>
                         {decisionSummary.isValid

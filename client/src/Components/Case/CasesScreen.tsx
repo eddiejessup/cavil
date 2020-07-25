@@ -28,6 +28,7 @@ import {
   notFetched,
   fetchError,
   fetchSuccess,
+  formatISOString,
 } from "../Common";
 import { NewCaseForm } from "./NewCase";
 import { Link as RouterLink, useRouteMatch } from "react-router-dom";
@@ -143,7 +144,7 @@ const CaseSummariesTable: React.FunctionComponent<CaseSummariesTableProps> = (
           <TableCell>Label</TableCell>
           <TableCell>Number of variants</TableCell>
           <TableCell>Number of decisions</TableCell>
-          <TableCell>Last decision (UTC)</TableCell>
+          <TableCell>Last decision time</TableCell>
           <TableCell>Last decision variant</TableCell>
         </TableRow>
       </TableHead>
@@ -163,7 +164,9 @@ const CaseSummariesTable: React.FunctionComponent<CaseSummariesTableProps> = (
               <TableCell>{item.nrVariants}</TableCell>
               <TableCell>{nrValidDecisions}</TableCell>
               <TableCell>
-                {lastValidDecision ? lastValidDecision.decisionTime : "-"}
+                {lastValidDecision
+                  ? formatISOString(lastValidDecision.decisionTime)
+                  : "-"}
               </TableCell>
               <TableCell>
                 {lastValidDecision ? lastValidDecision.variant : "-"}
