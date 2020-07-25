@@ -139,6 +139,7 @@ const CaseSummariesTable: React.FunctionComponent<CaseSummariesTableProps> = (
     <Table size="small">
       <TableHead>
         <TableRow>
+          <TableCell>ID</TableCell>
           <TableCell>Label</TableCell>
           <TableCell>Number of variants</TableCell>
           <TableCell>Number of decisions</TableCell>
@@ -152,15 +153,13 @@ const CaseSummariesTable: React.FunctionComponent<CaseSummariesTableProps> = (
           const nrValidDecisions = validDecisions.length;
           const lastValidDecision = validDecisions[nrValidDecisions - 1];
           return (
-            <TableRow key={item.label}>
+            <TableRow key={item.id}>
               <TableCell>
-                <MaterialLink
-                  component={RouterLink}
-                  to={`${url}/${item.label}`}
-                >
-                  {item.label}
+                <MaterialLink component={RouterLink} to={`${url}/${item.id}`}>
+                  {item.id}
                 </MaterialLink>
               </TableCell>
+              <TableCell>{item.label}</TableCell>
               <TableCell>{item.nrVariants}</TableCell>
               <TableCell>{nrValidDecisions}</TableCell>
               <TableCell>

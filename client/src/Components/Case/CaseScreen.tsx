@@ -2,6 +2,7 @@ import React from "react";
 import { Container, Grid, Chip } from "@material-ui/core";
 import { Alert } from "@material-ui/lab";
 import FormatListNumberedIcon from "@material-ui/icons/FormatListNumbered";
+import FingerprintIcon from "@material-ui/icons/Fingerprint";
 import {
   CaseSummary,
   ClientError,
@@ -25,7 +26,7 @@ import { useParams } from "react-router-dom";
 interface CaseScreenProps {}
 
 export const CaseScreen: React.FunctionComponent<CaseScreenProps> = (props) => {
-  const { caseLabel } = useParams();
+  const { caseId } = useParams();
   const classes = useStyles();
 
   const [fetchedCaseSummary, setFetchedCaseSummary] = React.useState<
@@ -40,7 +41,7 @@ export const CaseScreen: React.FunctionComponent<CaseScreenProps> = (props) => {
     const fetchData = async () => {
       if (fetchedCaseSummary.kind === "notFetched") {
         await caseSummarise(
-          caseLabel,
+          caseId,
           (value: CaseSummary) => {
             setFetchedCaseSummary(fetchSuccess(value));
           },
@@ -57,19 +58,24 @@ export const CaseScreen: React.FunctionComponent<CaseScreenProps> = (props) => {
     };
 
     fetchData();
-  }, [caseLabel, fetchedCaseSummary]);
+  }, [caseId, fetchedCaseSummary]);
 
   return (
     <Container maxWidth="lg" className={classes.container}>
       <Grid container spacing={3}>
-        {caseLabel && (
+        {caseId && (
           <Grid item xs={12}>
             {
               // Title with chip.
             }
             <Grid container spacing={1}>
               <Grid item>
-                <Title>Case {caseLabel}</Title>
+                <Title>
+                  Case{" "}
+                  {fetchedCaseSummary.kind === "fetchSuccess"
+                    ? fetchedCaseSummary.value.label
+                    : "?"}
+                </Title>
               </Grid>
               {fetchedCaseSummary.kind === "fetchSuccess" && (
                 <Grid item>
@@ -81,6 +87,14 @@ export const CaseScreen: React.FunctionComponent<CaseScreenProps> = (props) => {
                   />
                 </Grid>
               )}
+              <Grid item>
+                <Chip
+                  icon={<FingerprintIcon />}
+                  label={caseId}
+                  color="secondary"
+                  size="small"
+                />
+              </Grid>
             </Grid>
           </Grid>
         )}

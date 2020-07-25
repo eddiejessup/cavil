@@ -1,5 +1,6 @@
 import React from "react";
 import { Grid, Paper, CircularProgress, Chip, Button } from "@material-ui/core";
+import FingerprintIcon from "@material-ui/icons/Fingerprint";
 import { Alert } from "@material-ui/lab";
 import {
   CaseSummary,
@@ -30,8 +31,8 @@ export const NewDecision: React.FunctionComponent<NewDecisionProps> = ({
       setPending(true);
       setError(null);
       await caseDecide(
-        fetchedCaseSummary.value.label,
-        fetchedCaseSummary.value.nextDecisionToken,
+        fetchedCaseSummary.value.id,
+        fetchedCaseSummary.value.nextDecisionId,
         (_variant) => {
           onCaseChanged();
         },
@@ -77,7 +78,8 @@ export const NewDecision: React.FunctionComponent<NewDecisionProps> = ({
           {fetchedCaseSummary.kind === "fetchSuccess" && (
             <Grid item>
               <Chip
-                label={fetchedCaseSummary.value.nextDecisionToken}
+                icon={<FingerprintIcon />}
+                label={fetchedCaseSummary.value.nextDecisionId}
                 color="secondary"
                 size="small"
               />

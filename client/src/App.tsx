@@ -122,7 +122,7 @@ export const App: React.FunctionComponent<{}> = (props) => {
             <Route exact path="/cases">
               <CasesScreen />
             </Route>
-            <Route path="/cases/:caseLabel">
+            <Route path="/cases/:caseId">
               <CaseScreen />
             </Route>
             <Route path="/login">

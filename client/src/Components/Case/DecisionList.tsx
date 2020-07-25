@@ -18,7 +18,7 @@ import {
 import { Alert } from "@material-ui/lab";
 import {
   CaseSummary,
-  DecisionToken,
+  DecisionId,
   DecisionSummary,
   ClientError,
   renderClientError,
@@ -40,29 +40,29 @@ export const DecisionList: React.FunctionComponent<DecisionListProps> = ({
   const classes = useStyles();
 
   const [
-    tokenToConfirmInvalidation,
-    setTokenToConfirmInvalidation,
-  ] = React.useState<DecisionToken | null>(null);
+    idToConfirmInvalidation,
+    setIdToConfirmInvalidation,
+  ] = React.useState<DecisionId | null>(null);
   const [invalidationError, setInvalidationError] = React.useState<
     string | null
   >(null);
 
-  const handleInvalidateToken = async (reason: string) => {
-    // tokenToConfirmInvalidation shouldn’t be null because dialog is open iff
+  const handleInvalidateId = async (reason: string) => {
+    // idToConfirmInvalidation shouldn’t be null because dialog is open iff
     // it's non-null, but want to prove that to typescript.
     // caseSummary shouldn't be undefined because we show the table iff
     // it's defined, but want to prove that to typescript.
     if (
-      tokenToConfirmInvalidation !== null &&
+      idToConfirmInvalidation !== null &&
       fetchedCaseSummary.kind === "fetchSuccess"
     ) {
       setInvalidationError(null);
       await caseDecisionInvalidate(
-        fetchedCaseSummary.value.label,
-        tokenToConfirmInvalidation,
+        fetchedCaseSummary.value.id,
+        idToConfirmInvalidation,
         reason,
         () => {
-          setTokenToConfirmInvalidation(null);
+          setIdToConfirmInvalidation(null);
           onCaseChanged();
         },
         (err: ClientError) => {
@@ -92,9 +92,9 @@ export const DecisionList: React.FunctionComponent<DecisionListProps> = ({
             <Table size="small">
               <TableHead>
                 <TableRow>
-                  <TableCell>Decision time (UTC)</TableCell>
+                  <TableCell>ID</TableCell>
+                  <TableCell>Decision time</TableCell>
                   <TableCell>Variant</TableCell>
-                  <TableCell>Token</TableCell>
                   <TableCell>Status</TableCell>
                   <TableCell></TableCell>
                 </TableRow>
@@ -103,12 +103,12 @@ export const DecisionList: React.FunctionComponent<DecisionListProps> = ({
                 {fetchedCaseSummary.value.decisions.map(
                   (decisionSummary: DecisionSummary) => (
                     <TableRow
-                      key={decisionSummary.token}
+                      key={decisionSummary.id}
                       className={decisionSummary.isValid ? "" : classes.invalid}
                     >
+                      <TableCell>{decisionSummary.id}</TableCell>
                       <TableCell>{decisionSummary.decisionTime}</TableCell>
                       <TableCell>{decisionSummary.variant}</TableCell>
-                      <TableCell>{decisionSummary.token}</TableCell>
                       <TableCell>
                         {decisionSummary.isValid
                           ? null
@@ -122,9 +122,7 @@ export const DecisionList: React.FunctionComponent<DecisionListProps> = ({
                             color="secondary"
                             size="small"
                             onClick={() => {
-                              setTokenToConfirmInvalidation(
-                                decisionSummary.token
-                              );
+                              setIdToConfirmInvalidation(decisionSummary.id);
                             }}
                           >
                             Invalidate
@@ -143,14 +141,14 @@ export const DecisionList: React.FunctionComponent<DecisionListProps> = ({
               }}
               id="invalidate-dialog"
               keepMounted
-              open={tokenToConfirmInvalidation !== null}
+              open={idToConfirmInvalidation !== null}
               onClose={(reason?: string) => {
                 // reason is undefined iff we cancelled.
                 if (reason === undefined) {
-                  setTokenToConfirmInvalidation(null);
+                  setIdToConfirmInvalidation(null);
                   setInvalidationError(null);
                 } else {
-                  handleInvalidateToken(reason);
+                  handleInvalidateId(reason);
                 }
               }}
               error={invalidationError === null ? undefined : invalidationError}

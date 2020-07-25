@@ -4,21 +4,26 @@ import { ClientError, fetchCavil } from "./Common";
 
 export type CaseLabel = string;
 
-export type DecisionToken = string;
+export type CaseId = string;
+
+export type DecisionId = string;
 
 export type Variant = number;
 
+export type NrVariants = number;
+
 export interface CaseSummary {
-  nextDecisionToken: DecisionToken;
+  id: CaseId;
+  nextDecisionId: DecisionId;
   label: CaseLabel;
-  nrVariants: number;
+  nrVariants: NrVariants;
   decisions: Array<DecisionSummary>;
 }
 
 export interface DecisionSummary {
-  token: DecisionToken;
+  id: DecisionId;
   decisionTime: string;
-  variant: number;
+  variant: Variant;
   isValid: boolean;
   invalidationReason?: string;
 }
@@ -27,27 +32,27 @@ export interface DecisionSummary {
 
 export const caseCreate = async (
   caseLabel: CaseLabel,
-  nrVariants: number,
-  onSuccess: () => void,
+  nrVariants: NrVariants,
+  onSuccess: (id: CaseId) => void,
   onClientError: (err: ClientError) => void,
   onOtherError: (err: Error) => void
 ) =>
   await fetchCavil(
-    `case/${caseLabel}`,
-    { bodyObj: { nrVariants }, method: "PUT" },
+    `case`,
+    { bodyObj: { nrVariants, label: caseLabel }, method: "PUT" },
     onSuccess,
     onClientError,
     onOtherError
   );
 
 export const caseSummarise = async (
-  caseLabel: CaseLabel,
+  caseId: CaseId,
   onSuccess: (v: CaseSummary) => void,
   onClientError: (err: ClientError) => void,
   onOtherError: (err: Error) => void
 ) =>
   await fetchCavil(
-    `case/${caseLabel}`,
+    `case/${caseId}`,
     {},
     async (res) => {
       const caseSummary = await res.json();
@@ -58,14 +63,14 @@ export const caseSummarise = async (
   );
 
 export const caseDecide = async (
-  caseLabel: CaseLabel,
-  decisionToken: DecisionToken,
+  caseId: CaseId,
+  decisionId: DecisionId,
   onSuccess: (v: Variant) => void,
   onClientError: (err: ClientError) => void,
   onOtherError: (err: Error) => void
 ) =>
   await fetchCavil(
-    `case/${caseLabel}/${decisionToken}`,
+    `case/${caseId}/${decisionId}`,
     { method: "PUT" },
     async (res) => {
       const variant = await res.json();
@@ -76,15 +81,15 @@ export const caseDecide = async (
   );
 
 export const caseDecisionInvalidate = async (
-  caseLabel: CaseLabel,
-  decisionToken: DecisionToken,
+  caseId: CaseId,
+  decisionId: DecisionId,
   reason: string,
   onSuccess: () => void,
   onClientError: (err: ClientError) => void,
   onOtherError: (err: Error) => void
 ) =>
   await fetchCavil(
-    `case/${caseLabel}/${decisionToken}/invalidate`,
+    `case/${caseId}/${decisionId}/invalidate`,
     { bodyObj: { reason }, method: "POST" },
     onSuccess,
     onClientError,
