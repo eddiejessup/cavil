@@ -72,13 +72,13 @@ getAllAggIds pxy = do
         pgConn
         [sql|
           SELECT
-            aggregate_id
+            distinct aggregate_id
           FROM
             event
           WHERE
             event_type = ?
           ORDER BY
-            sequence_nr ASC
+            aggregate_id ASC
         |]
         (PG.Only (eventType pxy))
   pure $ PG.fromOnly <$> aggIds
