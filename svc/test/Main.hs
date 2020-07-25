@@ -23,7 +23,8 @@ unitTests :: TestTree
 unitTests =
   testGroup
     "Unit tests"
-    [ testCase "Single-case decision uniformity" testCaseVarsUniform
+    [ testCase "Single-case decision uniformity" testCaseVarsUniform,
+      testCase "Single-case variant sequence consistency" testCaseVarsConsistent
     ]
 
 dIdStream :: CaseId -> [DecisionId]
@@ -76,3 +77,12 @@ testCaseVarsUniform =
               <> ". Errors: "
               <> show varFreqFracErrs
        in assertBool failMsg (maximum varFreqFracErrs < uniformTol)
+
+testCaseVarsConsistent :: Assertion
+testCaseVarsConsistent = do
+  let varSample = take 10 (pickVariant nrVars <$> dIdStream caseId)
+  assertEqual "Variant sequence inconsistent" varSample expectedVarSample
+  where
+    caseId = caseIdFromUUIDText "acc21409-aa45-4f98-9b19-8fc13812e3ad"
+    nrVars = NrVariants 2
+    expectedVarSample = Variant <$> [1, 1, 1, 0, 1, 1, 0, 0, 0, 1]
