@@ -37,8 +37,8 @@ data InvalidateDecisionError
   | InvalidateDecisionWriteError WriteError
   deriving stock (Generic)
 
-mapAggregateError :: CaseLabel -> AggregateErrorWithState CaseAggregateError -> ClientError
-mapAggregateError caseLabel (AggregateErrorWithState aggState detail) =
+mapAggregateError :: Maybe CaseId -> AggregateErrorWithState CaseAggregateError -> ClientError
+mapAggregateError mayCaseId (AggregateErrorWithState aggState detail) =
   case aggState of
     AggregateBeforeRequest _ ->
       let detailMsg = case detail of
@@ -48,11 +48,11 @@ mapAggregateError caseLabel (AggregateErrorWithState aggState detail) =
               "Case events before case creation"
             NoSuchDecision ->
               "Decision events before decision creation"
-            IncoherentDecisionToken ->
-              "Incoherent tokens in decision chain"
+            IncoherentDecisionId ->
+              "Incoherent IDs in decision chain"
             DecisionAlreadyInvalidated ->
               "Multiple invalidations of decision"
-       in simpleClientError OurFault detailMsg ("caseLabel" .= caseLabel)
+       in simpleClientError OurFault detailMsg vals
     AggregateDuringRequest _ ->
       let detailMsg = case detail of
             CaseAlreadyExists ->
@@ -61,68 +61,69 @@ mapAggregateError caseLabel (AggregateErrorWithState aggState detail) =
               "No such case found"
             NoSuchDecision ->
               "No such decision found"
-            IncoherentDecisionToken ->
-              "Incoherent decision token"
+            IncoherentDecisionId ->
+              "Incoherent decision ID"
             DecisionAlreadyInvalidated ->
               "Decision has already been invalidated"
-       in simpleClientError OurFault detailMsg ("caseLabel" .= caseLabel)
+       in simpleClientError OurFault detailMsg vals
+  where
+    vals = maybe mempty ("caseId" .=) mayCaseId
 
 caseCreate ::
   (MonadIO m, MonadReader AppEnv m, MonadError ServerError m) =>
   User ->
-  CaseLabel ->
   CreateCaseRequest ->
-  m NoContent
-caseCreate _user caseLabel ccReq =
-  runExceptT (createCase caseLabel (getTyped @NrVariants ccReq)) >>= \case
+  m CaseId
+caseCreate _user ccReq =
+  runExceptT (createCase (getTyped @CaseLabel ccReq) (getTyped @NrVariants ccReq)) >>= \case
     Left e -> throwError $
       clientErrorAsServantError $ case e of
-        CreateCaseAggregateError aggE -> mapAggregateError caseLabel aggE
+        CreateCaseAggregateError aggE -> mapAggregateError Nothing aggE
         CreateCaseWriteError we -> mapWriteError we
-    Right () ->
-      pure NoContent
+    Right v ->
+      pure v
 
 caseSummarise ::
   (MonadIO m, MonadReader AppEnv m, MonadError ServerError m) =>
   User ->
-  CaseLabel ->
+  CaseId ->
   m CaseSummary
-caseSummarise _user caseLabel =
-  runExceptT (summariseCase caseLabel) >>= \case
+caseSummarise _user caseId =
+  runExceptT (summariseCase caseId) >>= \case
     Left e -> throwError $
       clientErrorAsServantError $ case e of
-        CaseSummaryAggregateError aggE -> mapAggregateError caseLabel aggE
+        CaseSummaryAggregateError aggE -> mapAggregateError (Just caseId) aggE
     Right v ->
       pure v
 
 caseDecide ::
   (MonadIO m, MonadReader AppEnv m, MonadError ServerError m) =>
   User ->
-  CaseLabel ->
-  DecisionToken ->
+  CaseId ->
+  DecisionId ->
   m Variant
-caseDecide _user caseLabel tok =
-  runExceptT (decideCase caseLabel tok) >>= \case
+caseDecide _user caseId dId =
+  runExceptT (decideCase caseId dId) >>= \case
     Left e ->
       throwError $
         clientErrorAsServantError $ case e of
-          DecideAggregateError aggE -> mapAggregateError caseLabel aggE
+          DecideAggregateError aggE -> mapAggregateError (Just caseId) aggE
           DecideWriteError we -> mapWriteError we
     Right v -> pure v
 
 caseDecisionInvalidate ::
   (MonadIO m, MonadReader AppEnv m, MonadError ServerError m) =>
   User ->
-  CaseLabel ->
-  DecisionToken ->
+  CaseId ->
+  DecisionId ->
   InvalidateDecisionRequest ->
   m NoContent
-caseDecisionInvalidate _user caseLabel tok invalidateReq =
-  runExceptT (invalidateDecision caseLabel tok (getField @"reason" invalidateReq)) >>= \case
+caseDecisionInvalidate _user caseId dId invalidateReq =
+  runExceptT (invalidateDecision caseId dId (getField @"reason" invalidateReq)) >>= \case
     Left e ->
       throwError $
         clientErrorAsServantError $ case e of
-          InvalidateDecisionAggregateError aggE -> mapAggregateError caseLabel aggE
+          InvalidateDecisionAggregateError aggE -> mapAggregateError (Just caseId) aggE
           InvalidateDecisionWriteError we -> mapWriteError we
     Right () -> pure NoContent
 
@@ -131,7 +132,7 @@ casesSummarise ::
   User ->
   m [CaseSummary]
 casesSummarise _user =
-  getAllCaseLabels >>= mapM (caseSummarise _user)
+  getAllCaseIds >>= mapM (caseSummarise _user)
 
 caseRoutes :: User -> CaseRoutes (AsServerT AppM)
 caseRoutes u =

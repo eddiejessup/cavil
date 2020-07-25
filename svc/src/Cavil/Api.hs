@@ -22,7 +22,7 @@ data SiteRoutes route = SiteRoutes
   }
   deriving stock (Generic)
 
-newtype Version = Version { unVersion :: Text }
+newtype Version = Version {unVersion :: Text}
   deriving newtype (Ae.ToJSON)
 
 siteApi :: Proxy (ToServantApi SiteRoutes)

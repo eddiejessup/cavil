@@ -6,7 +6,7 @@ module Cavil.Event.Case where
 
 import Cavil.Api.Case
 import Cavil.Event.Common
-import Cavil.Hashing (nextDecisionToken)
+import Cavil.Hashing (nextDecisionId)
 import qualified Data.Aeson as Ae
 import Data.Generics.Product.Typed
 import Data.Generics.Sum (AsType, injectTyped)
@@ -40,7 +40,7 @@ data CaseCreatedEvent = CaseCreatedEvent
   deriving anyclass (Ae.ToJSON, Ae.FromJSON)
 
 data DecisionMadeEvent = DecisionMadeEvent
-  { decisionToken :: DecisionToken,
+  { decisionId :: DecisionId,
     variant :: Variant,
     decisionTime :: UTCTime
   }
@@ -48,7 +48,7 @@ data DecisionMadeEvent = DecisionMadeEvent
   deriving anyclass (Ae.ToJSON, Ae.FromJSON)
 
 data DecisionInvalidatedEvent = DecisionInvalidatedEvent
-  { decisionToken :: DecisionToken,
+  { decisionId :: DecisionId,
     reason :: Text
   }
   deriving stock (Generic)
@@ -73,7 +73,7 @@ initialCaseAggregate ev =
       decisions = []
     }
 
-type DecisionsMap = [(DecisionToken, DecisionAggregate)]
+type DecisionsMap = [(DecisionId, DecisionAggregate)]
 
 data DecisionAggregate = DecisionAggregate
   { decisionTime :: UTCTime,
@@ -98,17 +98,17 @@ initialDecisionAggregate ev =
 
 -- Folding events.
 
--- | Do not filter to only valid decisions, or the token chain will lose
+-- | Do not filter to only valid decisions, or the ID chain will lose
 -- coherence.
-lastDecisionToken :: CaseAggregate -> Maybe DecisionToken
-lastDecisionToken agg =
+lastDecisionId :: CaseAggregate -> Maybe DecisionId
+lastDecisionId agg =
   fst <$> lastMay (getTyped @DecisionsMap agg)
 
-nextDecisionTokenFromAgg :: CaseAggregate -> DecisionToken
-nextDecisionTokenFromAgg agg =
-  Cavil.Hashing.nextDecisionToken $ case lastDecisionToken agg of
-    Nothing -> Left $ getTyped @CaseLabel agg
-    Just lastTok -> Right lastTok
+nextDecisionIdFromAgg :: CaseId -> CaseAggregate -> DecisionId
+nextDecisionIdFromAgg caseId agg =
+  Cavil.Hashing.nextDecisionId $ case lastDecisionId agg of
+    Nothing -> Left caseId
+    Just lastId -> Right lastId
 
 foldCaseEvent :: (MonadError e m, AsType (AggregateErrorWithState CaseAggregateError) e) => AggregateState -> Maybe CaseAggregate -> CaseEvent -> m (Maybe CaseAggregate)
 foldCaseEvent aggState mayAgg = \case
@@ -119,14 +119,14 @@ foldCaseEvent aggState mayAgg = \case
       throwError $ aggError CaseAlreadyExists
   DecisionMade ev -> do
     agg <- note (aggError NoSuchCase) mayAgg
-    if nextDecisionTokenFromAgg agg == ev ^. typed @DecisionToken
-      then pure $ Just $ agg & typed @DecisionsMap %~ (<> [(getTyped @DecisionToken ev, initialDecisionAggregate ev)])
-      else throwError $ aggError IncoherentDecisionToken
+    if nextDecisionIdFromAgg caseId agg == ev ^. typed @DecisionId
+      then pure $ Just $ agg & typed @DecisionsMap %~ (<> [(getTyped @DecisionId ev, initialDecisionAggregate ev)])
+      else throwError $ aggError IncoherentDecisionId
   DecisionInvalidated ev -> do
-    let tok = getTyped @DecisionToken ev
+    let dId = getTyped @DecisionId ev
     let reason = getField @"reason" ev
     agg <- note (aggError NoSuchCase) mayAgg
-    decisionAgg <- note (aggError NoSuchDecision) (List.lookup tok (getTyped @DecisionsMap agg))
+    decisionAgg <- note (aggError NoSuchDecision) (List.lookup dId (getTyped @DecisionsMap agg))
     case getTyped @DecisionValidity decisionAgg of
       DecisionIsNotValid _ ->
         throwError $ aggError DecisionAlreadyInvalidated
@@ -134,17 +134,19 @@ foldCaseEvent aggState mayAgg = \case
         -- unsafeFiltered: "This is not a legal Traversal, unless you are very
         -- careful not to invalidate the predicate on the target." I am a
         -- careful boy: I only change the decision validity, while my
-        -- predicate inspects only the decision token.
+        -- predicate inspects only the decision ID.
         pure $
           Just $
             agg
               & typed @DecisionsMap
               % traversed
-              % unsafeFiltered (\(inTok, _) -> inTok == tok)
+              % unsafeFiltered (\(inId, _) -> inId == dId)
               % _2
               % typed @DecisionValidity
               .~ DecisionIsNotValid reason
   where
+    caseId = CaseId $ unAggregateId $ aggIdFromState aggState
+
     aggError e =
       injectTyped $ AggregateErrorWithState aggState e
 
@@ -156,7 +158,7 @@ data CaseAggregateError
   = CaseAlreadyExists
   | NoSuchCase
   | NoSuchDecision
-  | IncoherentDecisionToken
+  | IncoherentDecisionId
   | DecisionAlreadyInvalidated
   deriving stock (Generic, Show)
 

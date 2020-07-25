@@ -4,6 +4,7 @@ module Cavil.Api.Ledger where
 
 import qualified Data.Aeson as Ae
 import Data.Time.Clock (UTCTime)
+import Data.UUID (UUID)
 import Protolude
 import Servant
 import Servant.API.Generic
@@ -11,9 +12,9 @@ import Servant.API.Generic
 -- API.
 
 data LedgerRoutes route = LedgerRoutes
-  { _ledgerCreate :: route :- Capture "label" LedgerLabel :> Put '[JSON] NoContent,
-    _ledgerSummarise :: route :- Capture "label" LedgerLabel :> Get '[JSON] LedgerSummary,
-    _ledgerWrite :: route :- Capture "label" LedgerLabel :> ReqBody '[JSON] LedgerWriteRequest :> Put '[JSON] NoContent,
+  { _ledgerCreate :: route :- ReqBody '[JSON] CreateLedgerRequest :> Put '[JSON] LedgerId,
+    _ledgerSummarise :: route :- Capture "ledgerId" LedgerId :> Get '[JSON] LedgerSummary,
+    _ledgerWrite :: route :- Capture "ledgerId" LedgerId :> ReqBody '[JSON] LedgerWriteRequest :> Put '[JSON] RecordId,
     _ledgersSummarise :: route :- Get '[JSON] [LedgerSummary]
   }
   deriving stock (Generic)
@@ -21,6 +22,13 @@ data LedgerRoutes route = LedgerRoutes
 -- /API.
 
 -- Interface domain types.
+newtype LedgerId = LedgerId {unLedgerId :: UUID}
+  deriving stock (Generic, Show)
+  deriving newtype (Eq, Ord, Ae.ToJSON, Ae.FromJSON, FromHttpApiData)
+
+newtype RecordId = RecordId {unRecordId :: UUID}
+  deriving stock (Generic, Show)
+  deriving newtype (Eq, Ord, Ae.ToJSON, Ae.FromJSON, FromHttpApiData)
 
 newtype RecordTime = RecordTime {unRecordTime :: UTCTime}
   deriving stock (Generic, Show)
@@ -38,6 +46,12 @@ newtype RecordBody = RecordBody {unRecordBody :: Text}
 
 -- Request interfaces.
 
+data CreateLedgerRequest = CreateLedgerRequest
+  { label :: LedgerLabel
+  }
+  deriving stock (Generic)
+  deriving anyclass (Ae.FromJSON)
+
 data LedgerWriteRequest = LedgerWriteRequest
   { recordTime :: RecordTime,
     body :: RecordBody
@@ -50,14 +64,16 @@ data LedgerWriteRequest = LedgerWriteRequest
 -- Response interfaces.
 
 data LedgerSummary = LedgerSummary
-  { label :: LedgerLabel,
+  { id :: LedgerId,
+    label :: LedgerLabel,
     records :: [RecordSummary]
   }
   deriving stock (Generic)
   deriving anyclass (Ae.ToJSON)
 
 data RecordSummary = RecordSummary
-  { recordTime :: RecordTime,
+  { id :: RecordId,
+    recordTime :: RecordTime,
     body :: RecordBody
   }
   deriving stock (Generic)

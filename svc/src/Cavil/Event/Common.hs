@@ -59,19 +59,20 @@ getAggregate aggState pxy = do
   agg <- foldAllEventsIntoAggregate aggState (PG.fromOnly <$> evts)
   pure (agg, AggregateValidatedToken aggId)
 
-getAllEvents ::
+getAllAggIds ::
   forall r m evt.
   (MonadIO m, MonadReader r m, HasType PG.Connection r, CavilEvent evt) =>
-  m [evt]
-getAllEvents = do
+  Proxy evt ->
+  m [AggregateId]
+getAllAggIds pxy = do
   pgConn <- gview (typed @PG.Connection)
-  evts <-
+  aggIds <-
     liftIO $
-      PG.query @_ @(PG.Only evt)
+      PG.query @_ @(PG.Only AggregateId)
         pgConn
         [sql|
           SELECT
-            data
+            aggregate_id
           FROM
             event
           WHERE
@@ -79,8 +80,8 @@ getAllEvents = do
           ORDER BY
             sequence_nr ASC
         |]
-        (PG.Only (eventType (Proxy @evt)))
-  pure $ PG.fromOnly <$> evts
+        (PG.Only (eventType pxy))
+  pure $ PG.fromOnly <$> aggIds
 
 insertEventsValidated ::
   (MonadIO m, MonadError e m, AsType (AggregateErrorWithState (AggErr evt)) e, AsType WriteError e, MonadReader r m, HasType PG.Connection r, CavilEvent evt) =>
@@ -120,20 +121,20 @@ insertEvents valAggId evts = do
         InsertedUnexpectedNrRows (fromIntegral nrRowsAffected)
 
 data AggregateState
-  = AggregateBeforeRequest AggregateID
+  = AggregateBeforeRequest AggregateId
   | AggregateDuringRequest AggregateValidatedToken
   deriving stock (Generic)
 
-newtype AggregateID = AggregateID {aggIdUUID :: UUID}
+newtype AggregateId = AggregateId {unAggregateId :: UUID}
   deriving stock (Generic, Show)
   deriving newtype (PG.ToField, PG.FromField)
 
-aggIdFromState :: AggregateState -> AggregateID
+aggIdFromState :: AggregateState -> AggregateId
 aggIdFromState = \case
   AggregateBeforeRequest aggId -> aggId
   AggregateDuringRequest valAggId -> validatedAggId valAggId
 
-newtype AggregateValidatedToken = AggregateValidatedToken {validatedAggId :: AggregateID}
+newtype AggregateValidatedToken = AggregateValidatedToken {validatedAggId :: AggregateId}
 
 data AggregateErrorWithState e
   = AggregateErrorWithState AggregateState e

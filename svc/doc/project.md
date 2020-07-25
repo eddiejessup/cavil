@@ -10,7 +10,7 @@ projectMain = do
 
 updateProjection :: PG.Connection -> Maybe Int64 -> IO (Maybe Int64)
 updateProjection pgConn maxSequenceNrAlreadySeen = do
-  rows <- liftIO $ PG.query @_ @(Int64, AggregateID, CaseEvent) pgConn
+  rows <- liftIO $ PG.query @_ @(Int64, AggregateId, CaseEvent) pgConn
     [sql|
         SELECT
           sequence_nr,

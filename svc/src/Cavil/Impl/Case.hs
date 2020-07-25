@@ -7,48 +7,38 @@ module Cavil.Impl.Case where
 import Cavil.Api.Case
 import Cavil.Event.Case
 import Cavil.Event.Common
-import Cavil.Hashing
-import qualified Data.Binary as B
 import Data.Generics.Product.Typed
 import Data.Generics.Sum (AsType, injectTyped)
 import qualified Data.List as List
 import qualified Data.Time as T
 import Data.UUID (UUID)
 import qualified Data.UUID as UUID
+import qualified Data.UUID.V4 as UUID.V4
 import qualified Database.PostgreSQL.Simple as PG
 import Protolude hiding ((%))
 
-aggIdFromCaseLabel :: CaseLabel -> AggregateID
-aggIdFromCaseLabel caseLabel =
-  AggregateID $
-    uuidFromArbitraryByteString aggIdSalt $
-      B.encode $
-        getTyped @Text caseLabel
-  where
-    aggIdSalt = "7XUS608HTAPy"
-
-pickVariant :: NrVariants -> DecisionToken -> Variant
-pickVariant nrVariants decisionToken =
-  let (w1, w2, w3, w4) = UUID.toWords $ getTyped @UUID decisionToken
+pickVariant :: NrVariants -> DecisionId -> Variant
+pickVariant nrVariants decisionId =
+  let (w1, w2, w3, w4) = UUID.toWords $ getTyped @UUID decisionId
       nonModuloInt = abs $ sum $ fromIntegral @Word32 @Int <$> [w1, w2, w3, w4]
       moduloInt = nonModuloInt `mod` getTyped @Int nrVariants
    in case mkVariant moduloInt of
         Nothing -> panic "impossible"
         Just v -> v
 
-fetchInitialCaseAggByLabel ::
+fetchInitialCaseAggById ::
   (MonadIO m, MonadError e m, AsType (AggregateErrorWithState CaseAggregateError) e, MonadReader r m, HasType PG.Connection r) =>
-  CaseLabel ->
+  CaseId ->
   m (Maybe CaseAggregate, AggregateValidatedToken)
-fetchInitialCaseAggByLabel caseLabel =
-  getAggregate (AggregateBeforeRequest (aggIdFromCaseLabel caseLabel)) (Proxy @CaseEvent)
+fetchInitialCaseAggById caseId =
+  getAggregate (AggregateBeforeRequest (AggregateId (unCaseId caseId))) (Proxy @CaseEvent)
 
-fetchCreatedCaseAggByLabel ::
+fetchCreatedCaseAggById ::
   (MonadIO m, MonadError e m, AsType (AggregateErrorWithState CaseAggregateError) e, MonadReader r m, HasType PG.Connection r) =>
-  CaseLabel ->
+  CaseId ->
   m (CaseAggregate, AggregateValidatedToken)
-fetchCreatedCaseAggByLabel caseLabel =
-  fetchInitialCaseAggByLabel caseLabel >>= \case
+fetchCreatedCaseAggById caseId =
+  fetchInitialCaseAggById caseId >>= \case
     (Nothing, valAggId) ->
       throwError $ injectTyped $ AggregateErrorWithState (AggregateDuringRequest valAggId) NoSuchCase
     (Just agg, valAggId) ->
@@ -64,18 +54,20 @@ createCase ::
   ) =>
   CaseLabel ->
   NrVariants ->
-  m ()
+  m CaseId
 createCase caseLabel nrVariants = do
-  (agg, valAggId) <- fetchInitialCaseAggByLabel caseLabel
+  caseId <- CaseId <$> liftIO UUID.V4.nextRandom
+  (agg, valAggId) <- fetchInitialCaseAggById caseId
   let newEvts = [CaseCreated (CaseCreatedEvent caseLabel nrVariants)]
   void $ insertEventsValidated valAggId agg newEvts
+  pure caseId
 
 summariseCase ::
   (MonadIO m, MonadError e m, AsType (AggregateErrorWithState CaseAggregateError) e, MonadReader r m, HasType PG.Connection r) =>
-  CaseLabel ->
+  CaseId ->
   m CaseSummary
-summariseCase caseLabel = do
-  (agg, _) <- fetchCreatedCaseAggByLabel caseLabel
+summariseCase caseId = do
+  (agg, _) <- fetchCreatedCaseAggById caseId
 
   let decisions =
         toDecisionSummary
@@ -83,22 +75,23 @@ summariseCase caseLabel = do
 
   pure $
     CaseSummary
-      { nextDecisionToken = nextDecisionTokenFromAgg agg,
+      { id = caseId,
+        nextDecisionId = nextDecisionIdFromAgg caseId agg,
         label = getTyped @CaseLabel agg,
         nrVariants = getTyped @NrVariants agg,
         decisions
       }
   where
     cmpDecisionTime ::
-      (DecisionToken, DecisionAggregate) ->
-      (DecisionToken, DecisionAggregate) ->
+      (DecisionId, DecisionAggregate) ->
+      (DecisionId, DecisionAggregate) ->
       Ordering
     cmpDecisionTime (_, a) (_, b) = getField @"decisionTime" a `compare` getField @"decisionTime" b
 
-    toDecisionSummary :: (DecisionToken, DecisionAggregate) -> DecisionSummary
-    toDecisionSummary (token, decAgg) =
+    toDecisionSummary :: (DecisionId, DecisionAggregate) -> DecisionSummary
+    toDecisionSummary (id, decAgg) =
       DecisionSummary
-        { token,
+        { id,
           decisionTime = getField @"decisionTime" decAgg,
           variant = getTyped @Variant decAgg,
           isValid = case getTyped @DecisionValidity decAgg of
@@ -117,17 +110,17 @@ decideCase ::
     MonadReader r m,
     HasType PG.Connection r
   ) =>
-  CaseLabel ->
-  DecisionToken ->
+  CaseId ->
+  DecisionId ->
   m Variant
-decideCase caseLabel reqDecisionToken = do
-  (agg, valAggId) <- fetchCreatedCaseAggByLabel caseLabel
-  case List.lookup reqDecisionToken (getField @"decisions" agg) of
+decideCase caseId reqDecisionId = do
+  (agg, valAggId) <- fetchCreatedCaseAggById caseId
+  case List.lookup reqDecisionId (getField @"decisions" agg) of
     Nothing -> do
       nowTime <- liftIO T.getCurrentTime
-      let decidedVariant = pickVariant (getTyped @NrVariants agg) reqDecisionToken
+      let decidedVariant = pickVariant (getTyped @NrVariants agg) reqDecisionId
 
-      let newEvts = [DecisionMade (DecisionMadeEvent reqDecisionToken decidedVariant nowTime)]
+      let newEvts = [DecisionMade (DecisionMadeEvent reqDecisionId decidedVariant nowTime)]
       void $ insertEventsValidated valAggId (Just agg) newEvts
 
       pure decidedVariant
@@ -142,17 +135,17 @@ invalidateDecision ::
     MonadReader r m,
     HasType PG.Connection r
   ) =>
-  CaseLabel ->
-  DecisionToken ->
+  CaseId ->
+  DecisionId ->
   Text ->
   m ()
-invalidateDecision caseLabel reqDecisionToken invalidateReason = do
-  (agg, valAggId) <- fetchCreatedCaseAggByLabel caseLabel
-  let newEvts = [DecisionInvalidated (DecisionInvalidatedEvent reqDecisionToken invalidateReason)]
+invalidateDecision caseId reqDecisionId invalidateReason = do
+  (agg, valAggId) <- fetchCreatedCaseAggById caseId
+  let newEvts = [DecisionInvalidated (DecisionInvalidatedEvent reqDecisionId invalidateReason)]
   void $ insertEventsValidated valAggId (Just agg) newEvts
 
-getAllCaseLabels ::
+getAllCaseIds ::
   (MonadIO m, MonadReader r m, HasType PG.Connection r) =>
-  m [CaseLabel]
-getAllCaseLabels =
-  caseLabelsFromEvents <$> getAllEvents
+  m [CaseId]
+getAllCaseIds =
+  fmap (CaseId . unAggregateId) <$> getAllAggIds (Proxy @CaseEvent)

@@ -13,10 +13,10 @@ import Servant.API.Generic
 
 -- API.
 data CaseRoutes route = CaseRoutes
-  { _caseCreate :: route :- Capture "label" CaseLabel :> ReqBody '[JSON] CreateCaseRequest :> Put '[JSON] NoContent,
-    _caseSummarise :: route :- Capture "label" CaseLabel :> Get '[JSON] CaseSummary,
-    _caseDecide :: route :- Capture "label" CaseLabel :> Capture "decisionToken" DecisionToken :> Put '[JSON] Variant,
-    _caseDecisionInvalidate :: route :- Capture "label" CaseLabel :> Capture "decisionToken" DecisionToken :> "invalidate" :> ReqBody '[JSON] InvalidateDecisionRequest :> Post '[JSON] NoContent,
+  { _caseCreate :: route :- ReqBody '[JSON] CreateCaseRequest :> Put '[JSON] CaseId,
+    _caseSummarise :: route :- Capture "caseId" CaseId :> Get '[JSON] CaseSummary,
+    _caseDecide :: route :- Capture "caseId" CaseId :> Capture "decisionId" DecisionId :> Put '[JSON] Variant,
+    _caseDecisionInvalidate :: route :- Capture "caseId" CaseId :> Capture "decisionId" DecisionId :> "invalidate" :> ReqBody '[JSON] InvalidateDecisionRequest :> Post '[JSON] NoContent,
     _casesSummarise :: route :- Get '[JSON] [CaseSummary]
   }
   deriving stock (Generic)
@@ -24,7 +24,11 @@ data CaseRoutes route = CaseRoutes
 -- /API.
 
 -- Interface domain types.
-newtype Variant = Variant {variantInt :: Int}
+newtype CaseId = CaseId {unCaseId :: UUID}
+  deriving stock (Generic, Show)
+  deriving newtype (Eq, Ord, Ae.ToJSON, Ae.FromJSON, FromHttpApiData)
+
+newtype Variant = Variant {unVariant :: Int}
   deriving stock (Generic, Show)
   deriving newtype (Eq, Ord, Ae.ToJSON)
 
@@ -42,7 +46,7 @@ mkVariant n
   | n < 0 = Nothing
   | otherwise = Just $ Variant n
 
-newtype NrVariants = NrVariants {nrVariantsInt :: Int}
+newtype NrVariants = NrVariants {unNrVariants :: Int}
   deriving stock (Generic, Show)
   deriving newtype (Ae.ToJSON)
 
@@ -60,12 +64,12 @@ mkNrVariants n
   | n < 2 = Nothing
   | otherwise = Just $ NrVariants n
 
-newtype DecisionToken = DecisionToken {decisionTokenUUID :: UUID}
+newtype DecisionId = DecisionId {unDecisionId :: UUID}
   deriving stock (Generic, Show)
   deriving newtype (Ae.ToJSON, Ae.FromJSON, Eq, FromHttpApiData)
   deriving newtype (Ord) -- For use in a Map
 
-newtype CaseLabel = CaseLabel {caseLabelText :: Text}
+newtype CaseLabel = CaseLabel {unCaseLabel :: Text}
   deriving stock (Generic, Show)
   deriving newtype (Ae.ToJSON, Ae.FromJSON, FromHttpApiData)
 
@@ -73,7 +77,8 @@ newtype CaseLabel = CaseLabel {caseLabelText :: Text}
 
 -- Request interfaces.
 data CreateCaseRequest = CreateCaseRequest
-  { nrVariants :: NrVariants
+  { label :: CaseLabel,
+    nrVariants :: NrVariants
   }
   deriving stock (Generic)
   deriving anyclass (Ae.FromJSON)
@@ -88,7 +93,8 @@ data InvalidateDecisionRequest = InvalidateDecisionRequest
 
 -- Response interfaces.
 data CaseSummary = CaseSummary
-  { nextDecisionToken :: DecisionToken,
+  { id :: CaseId,
+    nextDecisionId :: DecisionId,
     label :: CaseLabel,
     nrVariants :: NrVariants,
     decisions :: [DecisionSummary]
@@ -97,7 +103,7 @@ data CaseSummary = CaseSummary
   deriving anyclass (Ae.ToJSON)
 
 data DecisionSummary = DecisionSummary
-  { token :: DecisionToken,
+  { id :: DecisionId,
     decisionTime :: T.UTCTime,
     variant :: Variant,
     isValid :: Bool,

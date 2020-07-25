@@ -35,7 +35,8 @@ data LedgerCreatedEvent = LedgerCreatedEvent
   deriving anyclass (Ae.ToJSON, Ae.FromJSON)
 
 data RecordWrittenEvent = RecordWrittenEvent
-  { recordTime :: RecordTime,
+  { recordId :: RecordId,
+    recordTime :: RecordTime,
     body :: RecordBody
   }
   deriving stock (Generic)
@@ -47,7 +48,7 @@ data RecordWrittenEvent = RecordWrittenEvent
 
 data LedgerAggregate = LedgerAggregate
   { label :: LedgerLabel,
-    records :: [RecordAggregate]
+    records :: RecordsMap
   }
   deriving stock (Generic)
 
@@ -57,6 +58,8 @@ initialLedgerAggregate ev =
     { label = ev ^. typed @LedgerLabel,
       records = []
     }
+
+type RecordsMap = [(RecordId, RecordAggregate)]
 
 data RecordAggregate = RecordAggregate
   { recordTime :: RecordTime,
@@ -75,7 +78,7 @@ initialRecordAggregate ev =
 
 -- Folding events.
 
--- | Do not filter to only valid decisions, or the token chain will lose
+-- | Do not filter to only valid decisions, or the ID chain will lose
 -- coherence.
 foldLedgerEvent :: (MonadError e m, AsType (AggregateErrorWithState LedgerAggregateError) e) => AggregateState -> Maybe LedgerAggregate -> LedgerEvent -> m (Maybe LedgerAggregate)
 foldLedgerEvent aggState mayAgg = \case
@@ -86,7 +89,7 @@ foldLedgerEvent aggState mayAgg = \case
       throwError $ aggError LedgerAlreadyExists
   RecordWritten ev -> do
     agg <- note (aggError NoSuchLedger) mayAgg
-    pure $ Just $ agg & typed @[RecordAggregate] %~ (<> [initialRecordAggregate ev])
+    pure $ Just $ agg & typed @RecordsMap %~ (<> [(getTyped @RecordId ev, initialRecordAggregate ev)])
   where
     aggError e =
       injectTyped $ AggregateErrorWithState aggState e

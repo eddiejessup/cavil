@@ -7,35 +7,25 @@ module Cavil.Impl.Ledger where
 import Cavil.Api.Ledger
 import Cavil.Event.Common
 import Cavil.Event.Ledger
-import Cavil.Hashing
-import qualified Data.Binary as B
 import Data.Generics.Product.Typed
 import Data.Generics.Sum (AsType, injectTyped)
+import qualified Data.UUID.V4 as UUID.V4
 import qualified Database.PostgreSQL.Simple as PG
 import Protolude hiding ((%))
 
-aggIdFromLedgerLabel :: LedgerLabel -> AggregateID
-aggIdFromLedgerLabel ledgerLabel =
-  AggregateID $
-    uuidFromArbitraryByteString aggIdSalt $
-      B.encode $
-        getTyped @Text ledgerLabel
-  where
-    aggIdSalt = "Ym1JF76c5AEz"
-
-fetchInitialLedgerAggByLabel ::
+fetchInitialLedgerAggById ::
   (MonadIO m, MonadError e m, AsType (AggregateErrorWithState LedgerAggregateError) e, MonadReader r m, HasType PG.Connection r) =>
-  LedgerLabel ->
+  LedgerId ->
   m (Maybe LedgerAggregate, AggregateValidatedToken)
-fetchInitialLedgerAggByLabel ledgerLabel =
-  getAggregate (AggregateBeforeRequest (aggIdFromLedgerLabel ledgerLabel)) (Proxy @LedgerEvent)
+fetchInitialLedgerAggById ledgerId =
+  getAggregate (AggregateBeforeRequest (AggregateId (unLedgerId ledgerId))) (Proxy @LedgerEvent)
 
-fetchCreatedLedgerAggByLabel ::
+fetchCreatedLedgerAggById ::
   (MonadIO m, MonadError e m, AsType (AggregateErrorWithState LedgerAggregateError) e, MonadReader r m, HasType PG.Connection r) =>
-  LedgerLabel ->
+  LedgerId ->
   m (LedgerAggregate, AggregateValidatedToken)
-fetchCreatedLedgerAggByLabel ledgerLabel =
-  fetchInitialLedgerAggByLabel ledgerLabel >>= \case
+fetchCreatedLedgerAggById ledgerId =
+  fetchInitialLedgerAggById ledgerId >>= \case
     (Nothing, valAggId) ->
       throwError $ injectTyped $ AggregateErrorWithState (AggregateDuringRequest valAggId) NoSuchLedger
     (Just agg, valAggId) ->
@@ -50,37 +40,40 @@ createLedger ::
     HasType PG.Connection r
   ) =>
   LedgerLabel ->
-  m ()
+  m LedgerId
 createLedger ledgerLabel = do
-  (agg, valAggId) <- fetchInitialLedgerAggByLabel ledgerLabel
+  ledgerId <- LedgerId <$> liftIO UUID.V4.nextRandom
+  (agg, valAggId) <- fetchInitialLedgerAggById ledgerId
   let newEvts = [LedgerCreated (LedgerCreatedEvent ledgerLabel)]
   void $ insertEventsValidated valAggId agg newEvts
+  pure ledgerId
 
 summariseLedger ::
   (MonadIO m, MonadError e m, AsType (AggregateErrorWithState LedgerAggregateError) e, MonadReader r m, HasType PG.Connection r) =>
-  LedgerLabel ->
+  LedgerId ->
   m LedgerSummary
-summariseLedger ledgerLabel = do
-  (agg, _) <- fetchCreatedLedgerAggByLabel ledgerLabel
-
-  pure $
+summariseLedger ledgerId = do
+  (agg, _) <- fetchCreatedLedgerAggById ledgerId
+  pure
     LedgerSummary
-      { label = getTyped @LedgerLabel agg,
+      { id = ledgerId,
+        label = getTyped @LedgerLabel agg,
         records =
           toRecordSummary
             <$> sortBy cmpRecordTime (getField @"records" agg)
       }
   where
     cmpRecordTime ::
-      RecordAggregate ->
-      RecordAggregate ->
+      (RecordId, RecordAggregate) ->
+      (RecordId, RecordAggregate) ->
       Ordering
-    cmpRecordTime a b = getField @"recordTime" a `compare` getField @"recordTime" b
+    cmpRecordTime (_, a) (_, b) = getTyped @RecordTime a `compare` getTyped @RecordTime b
 
-    toRecordSummary :: RecordAggregate -> RecordSummary
-    toRecordSummary recAgg =
+    toRecordSummary :: (RecordId, RecordAggregate) -> RecordSummary
+    toRecordSummary (id, recAgg) =
       RecordSummary
-        { recordTime = getField @"recordTime" recAgg,
+        { id,
+          recordTime = getTyped @RecordTime recAgg,
           body = getTyped @RecordBody recAgg
         }
 
@@ -92,17 +85,19 @@ writeRecord ::
     MonadReader r m,
     HasType PG.Connection r
   ) =>
-  LedgerLabel ->
+  LedgerId ->
   RecordTime ->
   RecordBody ->
-  m ()
-writeRecord ledgerLabel recTime recBody = do
-  (agg, valAggId) <- fetchCreatedLedgerAggByLabel ledgerLabel
-  let newEvts = [RecordWritten (RecordWrittenEvent recTime recBody)]
+  m RecordId
+writeRecord ledgerId recTime recBody = do
+  recordId <- RecordId <$> liftIO UUID.V4.nextRandom
+  (agg, valAggId) <- fetchCreatedLedgerAggById ledgerId
+  let newEvts = [RecordWritten (RecordWrittenEvent recordId recTime recBody)]
   void $ insertEventsValidated valAggId (Just agg) newEvts
+  pure recordId
 
-getAllLedgerLabels ::
+getAllLedgerIds ::
   (MonadIO m, MonadReader r m, HasType PG.Connection r) =>
-  m [LedgerLabel]
-getAllLedgerLabels =
-  ledgerLabelsFromEvents <$> getAllEvents
+  m [LedgerId]
+getAllLedgerIds =
+  fmap (LedgerId . unAggregateId) <$> getAllAggIds (Proxy @LedgerEvent)
