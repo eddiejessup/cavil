@@ -24,7 +24,7 @@ RUN mkdir /opt/cavil/app /opt/cavil/src /opt/cavil/test
 COPY app /opt/cavil/app/
 COPY src /opt/cavil/src/
 COPY test /opt/cavil/test/
-COPY cavil.cabal Setup.hs /opt/cavil/
+COPY cavil.cabal /opt/cavil/
 RUN cabal new-install cavil:exe:app
 
 EXPOSE 80
