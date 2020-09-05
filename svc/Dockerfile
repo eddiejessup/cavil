@@ -1,4 +1,4 @@
-FROM haskell:8.8.3-buster
+FROM haskell:8.10.2-buster
 
 WORKDIR /opt/cavil
 
