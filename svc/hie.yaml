@@ -1,20 +1,8 @@
 cradle:
-  multi:
-    - path: ./
-      config:
-        cradle:
-          cabal:
-            component: "lib:cavil"
-    - path: test/
-      config:
-        cradle:
-          cabal:
-            component: "cavil:test"
-    - path: ./Setup.hs
-      config:
-        cradle:
-          none:
-    - path: doc/
-      config:
-        cradle:
-          none:
+  cabal:
+    - path: "src"
+      component: "lib:cavil"
+    - path: "app"
+      component: "cavil:exe:app"
+    - path: "test"
+      component: "cavil:test:test"

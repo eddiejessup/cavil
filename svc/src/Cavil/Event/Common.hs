@@ -1,6 +1,5 @@
 {-# LANGUAGE DuplicateRecordFields #-}
 {-# LANGUAGE LambdaCase #-}
-{-# LANGUAGE QuasiQuotes #-}
 {-# LANGUAGE TypeApplications #-}
 
 module Cavil.Event.Common where
@@ -11,7 +10,6 @@ import qualified Data.List as List
 import Data.UUID (UUID)
 import qualified Database.PostgreSQL.Simple as PG
 import qualified Database.PostgreSQL.Simple.FromField as PG
-import Database.PostgreSQL.Simple.SqlQQ
 import qualified Database.PostgreSQL.Simple.ToField as PG
 import Optics
 import Protolude hiding (to, (%))
@@ -44,17 +42,17 @@ getAggregate aggState pxy = do
     liftIO $
       PG.query @_ @(PG.Only evt)
         pgConn
-        [sql|
-            SELECT
-              data
-            FROM
-              event
-            WHERE
-              event_type = ?
-              and aggregate_id = ?
-            ORDER BY
-              sequence_nr ASC
-          |]
+        "\
+        \ SELECT\
+        \     data\
+        \ FROM\
+        \    event\
+        \ WHERE\
+        \    event_type = ?\
+        \    and aggregate_id = ?\
+        \ ORDER BY\
+        \    sequence_nr ASC\
+        \"
         (eventType pxy, aggId)
   agg <- foldAllEventsIntoAggregate aggState (PG.fromOnly <$> evts)
   pure (agg, AggregateValidatedToken aggId)
@@ -70,16 +68,16 @@ getAllAggIds pxy = do
     liftIO $
       PG.query @_ @(PG.Only AggregateId)
         pgConn
-        [sql|
-          SELECT
-            distinct aggregate_id
-          FROM
-            event
-          WHERE
-            event_type = ?
-          ORDER BY
-            aggregate_id ASC
-        |]
+        "\
+        \ SELECT\
+        \   distinct aggregate_id\
+        \ FROM\
+        \   event\
+        \ WHERE\
+        \   event_type = ?\
+        \ ORDER BY\
+        \   aggregate_id ASC\
+        \ "
         (PG.Only (eventType pxy))
   pure $ PG.fromOnly <$> aggIds
 
@@ -108,7 +106,7 @@ insertEvents valAggId evts = do
       liftIO $
         PG.executeMany
           pgConn
-          [sql| INSERT INTO event (event_type, aggregate_id, data) VALUES (?, ?, ?)|]
+          "INSERT INTO event (event_type, aggregate_id, data) VALUES (?, ?, ?)"
           ( List.zip3
               (repeat (eventType (Proxy @evt)))
               (repeat (validatedAggId valAggId))

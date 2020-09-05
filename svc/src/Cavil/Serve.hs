@@ -2,6 +2,7 @@
 {-# LANGUAGE DuplicateRecordFields #-}
 {-# LANGUAGE TemplateHaskell #-}
 {-# LANGUAGE UndecidableInstances #-}
+{-# LANGUAGE CPP #-}
 
 module Cavil.Serve where
 
@@ -23,8 +24,16 @@ siteRoutes =
       _version = pure version
     }
 
+-- When GHCIDE encounters at least some usages of Template Haskell, including
+-- this usage, GHCIDE experiences a segmentation fault. This C++ guard causes
+-- GHCIDE to read an harmless simulacrum of the real code, instead of the true
+-- horror.
 version :: Version
+#ifdef __GHCIDE__
+version = Version "0"
+#else
 version = Version $(P.packageVariable (P.pkgVersion . P.package))
+#endif
 
 -- Natural transformation from our custom handler monad to the servant monad.
 appToHandler :: AppEnv -> AppM a -> Handler a
