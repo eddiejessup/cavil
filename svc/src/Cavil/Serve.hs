@@ -7,10 +7,12 @@
 module Cavil.Serve where
 
 import Cavil.Api
-import Cavil.Serve.Case
+import Cavil.Serve.Decider
 import Cavil.Serve.Common
 import Cavil.Serve.Ledger
+#ifndef __GHCIDE__
 import qualified Distribution.PackageDescription.TH as P
+#endif
 import Protolude hiding (Handler)
 import Servant
 import Servant.API.Generic
@@ -19,7 +21,7 @@ import Servant.Server.Generic
 siteRoutes :: SiteRoutes (AsServerT AppM)
 siteRoutes =
   SiteRoutes
-    { _case = toServant . caseRoutes,
+    { _decider = toServant . deciderRoutes,
       _ledger = toServant . ledgerRoutes,
       _version = pure version
     }

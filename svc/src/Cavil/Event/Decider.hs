@@ -2,9 +2,9 @@
 {-# LANGUAGE LambdaCase #-}
 {-# LANGUAGE TypeApplications #-}
 
-module Cavil.Event.Case where
+module Cavil.Event.Decider where
 
-import Cavil.Api.Case
+import Cavil.Api.Decider
 import Cavil.Event.Common
 import Cavil.Hashing (nextDecisionId)
 import qualified Data.Aeson as Ae
@@ -19,21 +19,21 @@ import Protolude hiding (to, (%))
 
 -- Event.
 
-data CaseEvent
-  = CaseCreated CaseCreatedEvent
+data DeciderEvent
+  = DeciderCreated DeciderCreatedEvent
   | DecisionMade DecisionMadeEvent
   | DecisionInvalidated DecisionInvalidatedEvent
   deriving stock (Generic)
   deriving anyclass (Ae.ToJSON, Ae.FromJSON)
 
-instance PG.FromField CaseEvent where
+instance PG.FromField DeciderEvent where
   fromField = PG.fromJSONField
 
-instance PG.ToField CaseEvent where
+instance PG.ToField DeciderEvent where
   toField = PG.toJSONField
 
-data CaseCreatedEvent = CaseCreatedEvent
-  { caseLabel :: CaseLabel,
+data DeciderCreatedEvent = DeciderCreatedEvent
+  { deciderLabel :: DeciderLabel,
     nrVariants :: NrVariants
   }
   deriving stock (Generic)
@@ -58,17 +58,17 @@ data DecisionInvalidatedEvent = DecisionInvalidatedEvent
 
 -- Aggregate.
 
-data CaseAggregate = CaseAggregate
-  { caseLabel :: CaseLabel,
+data DeciderAggregate = DeciderAggregate
+  { deciderLabel :: DeciderLabel,
     nrVariants :: NrVariants,
     decisions :: DecisionsMap
   }
   deriving stock (Generic)
 
-initialCaseAggregate :: CaseCreatedEvent -> CaseAggregate
-initialCaseAggregate ev =
-  CaseAggregate
-    { caseLabel = ev ^. typed @CaseLabel,
+initialDeciderAggregate :: DeciderCreatedEvent -> DeciderAggregate
+initialDeciderAggregate ev =
+  DeciderAggregate
+    { deciderLabel = ev ^. typed @DeciderLabel,
       nrVariants = ev ^. typed @NrVariants,
       decisions = []
     }
@@ -100,32 +100,32 @@ initialDecisionAggregate ev =
 
 -- | Do not filter to only valid decisions, or the ID chain will lose
 -- coherence.
-lastDecisionId :: CaseAggregate -> Maybe DecisionId
+lastDecisionId :: DeciderAggregate -> Maybe DecisionId
 lastDecisionId agg =
   fst <$> lastMay (getTyped @DecisionsMap agg)
 
-nextDecisionIdFromAgg :: CaseId -> CaseAggregate -> DecisionId
-nextDecisionIdFromAgg caseId agg =
+nextDecisionIdFromAgg :: DeciderId -> DeciderAggregate -> DecisionId
+nextDecisionIdFromAgg deciderId agg =
   Cavil.Hashing.nextDecisionId $ case lastDecisionId agg of
-    Nothing -> Left caseId
+    Nothing -> Left deciderId
     Just lastId -> Right lastId
 
-foldCaseEvent :: (MonadError e m, AsType (AggregateErrorWithState CaseAggregateError) e) => AggregateState -> Maybe CaseAggregate -> CaseEvent -> m (Maybe CaseAggregate)
-foldCaseEvent aggState mayAgg = \case
-  CaseCreated ccEvt -> case mayAgg of
+foldDeciderEvent :: (MonadError e m, AsType (AggregateErrorWithState DeciderAggregateError) e) => AggregateState -> Maybe DeciderAggregate -> DeciderEvent -> m (Maybe DeciderAggregate)
+foldDeciderEvent aggState mayAgg = \case
+  DeciderCreated ccEvt -> case mayAgg of
     Nothing ->
-      pure $ Just $ initialCaseAggregate ccEvt
+      pure $ Just $ initialDeciderAggregate ccEvt
     Just _ ->
-      throwError $ aggError CaseAlreadyExists
+      throwError $ aggError DeciderAlreadyExists
   DecisionMade ev -> do
-    agg <- note (aggError NoSuchCase) mayAgg
-    if nextDecisionIdFromAgg caseId agg == ev ^. typed @DecisionId
+    agg <- note (aggError NoSuchDecider) mayAgg
+    if nextDecisionIdFromAgg deciderId agg == ev ^. typed @DecisionId
       then pure $ Just $ agg & typed @DecisionsMap %~ (<> [(getTyped @DecisionId ev, initialDecisionAggregate ev)])
       else throwError $ aggError IncoherentDecisionId
   DecisionInvalidated ev -> do
     let dId = getTyped @DecisionId ev
     let reason = getField @"reason" ev
-    agg <- note (aggError NoSuchCase) mayAgg
+    agg <- note (aggError NoSuchDecider) mayAgg
     decisionAgg <- note (aggError NoSuchDecision) (List.lookup dId (getTyped @DecisionsMap agg))
     case getTyped @DecisionValidity decisionAgg of
       DecisionIsNotValid _ ->
@@ -145,7 +145,7 @@ foldCaseEvent aggState mayAgg = \case
               % typed @DecisionValidity
               .~ DecisionIsNotValid reason
   where
-    caseId = CaseId $ unAggregateId $ aggIdFromState aggState
+    deciderId = DeciderId $ unAggregateId $ aggIdFromState aggState
 
     aggError e =
       injectTyped $ AggregateErrorWithState aggState e
@@ -154,9 +154,9 @@ foldCaseEvent aggState mayAgg = \case
 
 -- Errors.
 
-data CaseAggregateError
-  = CaseAlreadyExists
-  | NoSuchCase
+data DeciderAggregateError
+  = DeciderAlreadyExists
+  | NoSuchDecider
   | NoSuchDecision
   | IncoherentDecisionId
   | DecisionAlreadyInvalidated
@@ -166,25 +166,25 @@ data CaseAggregateError
 
 -- Projection.
 
-caseLabelsFromEvents :: [CaseEvent] -> [CaseLabel]
-caseLabelsFromEvents = foldl' go []
+deciderLabelsFromEvents :: [DeciderEvent] -> [DeciderLabel]
+deciderLabelsFromEvents = foldl' go []
   where
-    go caseLabels = \case
-      CaseCreated ccEvt -> caseLabels <> [getTyped @CaseLabel ccEvt]
-      DecisionMade _ -> caseLabels
-      DecisionInvalidated _ -> caseLabels
+    go deciderLabels = \case
+      DeciderCreated ccEvt -> deciderLabels <> [getTyped @DeciderLabel ccEvt]
+      DecisionMade _ -> deciderLabels
+      DecisionInvalidated _ -> deciderLabels
 
 -- /Projection.
 
 -- Instance.
 
-instance CavilEvent CaseEvent where
-  type EvtAggregate CaseEvent = CaseAggregate
+instance CavilEvent DeciderEvent where
+  type EvtAggregate DeciderEvent = DeciderAggregate
 
-  type AggErr CaseEvent = CaseAggregateError
+  type AggErr DeciderEvent = DeciderAggregateError
 
-  eventType _pxy = "case"
+  eventType _pxy = "decider"
 
-  foldEvt = foldCaseEvent
+  foldEvt = foldDeciderEvent
 
 -- /Instance.

@@ -3,7 +3,7 @@
 
 module Cavil.Hashing where
 
-import Cavil.Api.Case
+import Cavil.Api.Decider
 import qualified Crypto.Hash.SHA256 as SHA256
 import qualified Data.Binary as B
 import qualified Data.ByteString.Lazy as BS.L
@@ -16,7 +16,7 @@ uuidFromArbitraryByteString :: BS.L.ByteString -> BS.L.ByteString -> UUID
 uuidFromArbitraryByteString salt bs =
   B.decode @UUID $ BS.L.fromStrict $ SHA256.hashlazy (bs <> salt)
 
-nextDecisionId :: Either CaseId DecisionId -> DecisionId
+nextDecisionId :: Either DeciderId DecisionId -> DecisionId
 nextDecisionId caseOrLastDecId =
   DecisionId $
     uuidFromArbitraryByteString decisionSalt $

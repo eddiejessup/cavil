@@ -34,7 +34,7 @@ newtype RecordTime = RecordTime {unRecordTime :: UTCTime}
   deriving stock (Generic, Show)
   deriving newtype (Ae.ToJSON, Ae.FromJSON, Eq, Ord)
 
-newtype LedgerLabel = LedgerLabel {caseLabelText :: Text}
+newtype LedgerLabel = LedgerLabel {deciderLabelText :: Text}
   deriving stock (Generic, Show)
   deriving newtype (Ae.ToJSON, Ae.FromJSON, FromHttpApiData)
 

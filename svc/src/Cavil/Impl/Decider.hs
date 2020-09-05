@@ -2,10 +2,10 @@
 {-# LANGUAGE LambdaCase #-}
 {-# LANGUAGE TypeApplications #-}
 
-module Cavil.Impl.Case where
+module Cavil.Impl.Decider where
 
-import Cavil.Api.Case
-import Cavil.Event.Case
+import Cavil.Api.Decider
+import Cavil.Event.Decider
 import Cavil.Event.Common
 import Data.Generics.Product.Typed
 import Data.Generics.Sum (AsType, injectTyped)
@@ -26,58 +26,58 @@ pickVariant nrVariants decisionId =
         Nothing -> panic "impossible"
         Just v -> v
 
-fetchInitialCaseAggById ::
-  (MonadIO m, MonadError e m, AsType (AggregateErrorWithState CaseAggregateError) e, MonadReader r m, HasType PG.Connection r) =>
-  CaseId ->
-  m (Maybe CaseAggregate, AggregateValidatedToken)
-fetchInitialCaseAggById caseId =
-  getAggregate (AggregateBeforeRequest (AggregateId (unCaseId caseId))) (Proxy @CaseEvent)
+fetchInitialDeciderAggById ::
+  (MonadIO m, MonadError e m, AsType (AggregateErrorWithState DeciderAggregateError) e, MonadReader r m, HasType PG.Connection r) =>
+  DeciderId ->
+  m (Maybe DeciderAggregate, AggregateValidatedToken)
+fetchInitialDeciderAggById deciderId =
+  getAggregate (AggregateBeforeRequest (AggregateId (unDeciderId deciderId))) (Proxy @DeciderEvent)
 
-fetchCreatedCaseAggById ::
-  (MonadIO m, MonadError e m, AsType (AggregateErrorWithState CaseAggregateError) e, MonadReader r m, HasType PG.Connection r) =>
-  CaseId ->
-  m (CaseAggregate, AggregateValidatedToken)
-fetchCreatedCaseAggById caseId =
-  fetchInitialCaseAggById caseId >>= \case
+fetchCreatedDeciderAggById ::
+  (MonadIO m, MonadError e m, AsType (AggregateErrorWithState DeciderAggregateError) e, MonadReader r m, HasType PG.Connection r) =>
+  DeciderId ->
+  m (DeciderAggregate, AggregateValidatedToken)
+fetchCreatedDeciderAggById deciderId =
+  fetchInitialDeciderAggById deciderId >>= \case
     (Nothing, valAggId) ->
-      throwError $ injectTyped $ AggregateErrorWithState (AggregateDuringRequest valAggId) NoSuchCase
+      throwError $ injectTyped $ AggregateErrorWithState (AggregateDuringRequest valAggId) NoSuchDecider
     (Just agg, valAggId) ->
       pure (agg, valAggId)
 
-createCase ::
+createDecider ::
   ( MonadIO m,
     MonadError e m,
-    AsType (AggregateErrorWithState CaseAggregateError) e,
+    AsType (AggregateErrorWithState DeciderAggregateError) e,
     AsType WriteError e,
     MonadReader r m,
     HasType PG.Connection r
   ) =>
-  CaseLabel ->
+  DeciderLabel ->
   NrVariants ->
-  m CaseId
-createCase caseLabel nrVariants = do
-  caseId <- CaseId <$> liftIO UUID.V4.nextRandom
-  (agg, valAggId) <- fetchInitialCaseAggById caseId
-  let newEvts = [CaseCreated (CaseCreatedEvent caseLabel nrVariants)]
+  m DeciderId
+createDecider deciderLabel nrVariants = do
+  deciderId <- DeciderId <$> liftIO UUID.V4.nextRandom
+  (agg, valAggId) <- fetchInitialDeciderAggById deciderId
+  let newEvts = [DeciderCreated (DeciderCreatedEvent deciderLabel nrVariants)]
   void $ insertEventsValidated valAggId agg newEvts
-  pure caseId
+  pure deciderId
 
-summariseCase ::
-  (MonadIO m, MonadError e m, AsType (AggregateErrorWithState CaseAggregateError) e, MonadReader r m, HasType PG.Connection r) =>
-  CaseId ->
-  m CaseSummary
-summariseCase caseId = do
-  (agg, _) <- fetchCreatedCaseAggById caseId
+summariseDecider ::
+  (MonadIO m, MonadError e m, AsType (AggregateErrorWithState DeciderAggregateError) e, MonadReader r m, HasType PG.Connection r) =>
+  DeciderId ->
+  m DeciderSummary
+summariseDecider deciderId = do
+  (agg, _) <- fetchCreatedDeciderAggById deciderId
 
   let decisions =
         toDecisionSummary
           <$> sortBy cmpDecisionTime (getField @"decisions" agg)
 
   pure $
-    CaseSummary
-      { id = caseId,
-        nextDecisionId = nextDecisionIdFromAgg caseId agg,
-        label = getTyped @CaseLabel agg,
+    DeciderSummary
+      { id = deciderId,
+        nextDecisionId = nextDecisionIdFromAgg deciderId agg,
+        label = getTyped @DeciderLabel agg,
         nrVariants = getTyped @NrVariants agg,
         decisions
       }
@@ -102,19 +102,19 @@ summariseCase caseId = do
             DecisionIsNotValid reason -> Just reason
         }
 
-decideCase ::
+decideDecider ::
   ( MonadIO m,
     MonadError e m,
-    AsType (AggregateErrorWithState CaseAggregateError) e,
+    AsType (AggregateErrorWithState DeciderAggregateError) e,
     AsType WriteError e,
     MonadReader r m,
     HasType PG.Connection r
   ) =>
-  CaseId ->
+  DeciderId ->
   DecisionId ->
   m Variant
-decideCase caseId reqDecisionId = do
-  (agg, valAggId) <- fetchCreatedCaseAggById caseId
+decideDecider deciderId reqDecisionId = do
+  (agg, valAggId) <- fetchCreatedDeciderAggById deciderId
   case List.lookup reqDecisionId (getField @"decisions" agg) of
     Nothing -> do
       nowTime <- liftIO T.getCurrentTime
@@ -130,22 +130,22 @@ decideCase caseId reqDecisionId = do
 invalidateDecision ::
   ( MonadIO m,
     MonadError e m,
-    AsType (AggregateErrorWithState CaseAggregateError) e,
+    AsType (AggregateErrorWithState DeciderAggregateError) e,
     AsType WriteError e,
     MonadReader r m,
     HasType PG.Connection r
   ) =>
-  CaseId ->
+  DeciderId ->
   DecisionId ->
   Text ->
   m ()
-invalidateDecision caseId reqDecisionId invalidateReason = do
-  (agg, valAggId) <- fetchCreatedCaseAggById caseId
+invalidateDecision deciderId reqDecisionId invalidateReason = do
+  (agg, valAggId) <- fetchCreatedDeciderAggById deciderId
   let newEvts = [DecisionInvalidated (DecisionInvalidatedEvent reqDecisionId invalidateReason)]
   void $ insertEventsValidated valAggId (Just agg) newEvts
 
-getAllCaseIds ::
+getAllDeciderIds ::
   (MonadIO m, MonadReader r m, HasType PG.Connection r) =>
-  m [CaseId]
-getAllCaseIds =
-  fmap (CaseId . unAggregateId) <$> getAllAggIds (Proxy @CaseEvent)
+  m [DeciderId]
+getAllDeciderIds =
+  fmap (DeciderId . unAggregateId) <$> getAllAggIds (Proxy @DeciderEvent)

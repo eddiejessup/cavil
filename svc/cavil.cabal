@@ -20,20 +20,20 @@ source-repository head
 library
   exposed-modules:
       Cavil.Api
-      Cavil.Api.Case
       Cavil.Api.Common
+      Cavil.Api.Decider
       Cavil.Api.Ledger
-      Cavil.Event.Case
       Cavil.Event.Common
+      Cavil.Event.Decider
       Cavil.Event.Ledger
       Cavil.Hashing
       Cavil.Impl
-      Cavil.Impl.Case
       Cavil.Impl.Common
+      Cavil.Impl.Decider
       Cavil.Impl.Ledger
       Cavil.Serve
-      Cavil.Serve.Case
       Cavil.Serve.Common
+      Cavil.Serve.Decider
       Cavil.Serve.Ledger
   other-modules:
       Paths_cavil
