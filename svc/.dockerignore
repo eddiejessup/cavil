@@ -9,3 +9,6 @@ CHANGELOG.md
 
 # Development.
 hie.yaml
+
+# Build artifacts.
+dist-newstyle/
