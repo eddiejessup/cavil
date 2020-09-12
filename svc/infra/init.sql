@@ -4,7 +4,7 @@ CREATE DATABASE cavil;
 
 \connect cavil
 
-CREATE TYPE event_type AS ENUM ('case', 'ledger');
+CREATE TYPE event_type AS ENUM ('decider', 'ledger');
 
 CREATE TABLE event (
     sequence_nr bigserial,
@@ -15,5 +15,6 @@ CREATE TABLE event (
 )
 ;
 
+GRANT ALL PRIVILEGES ON TYPE event_type TO cavil;
 GRANT ALL PRIVILEGES ON ALL TABLES IN SCHEMA public TO cavil;
 GRANT ALL PRIVILEGES ON ALL SEQUENCES IN SCHEMA public TO cavil;
