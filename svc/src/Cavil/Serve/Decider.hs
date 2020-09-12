@@ -87,7 +87,7 @@ deciderCreate ::
   CreateDeciderRequest ->
   m DeciderId
 deciderCreate _user ccReq =
-  runExceptT (createDecider (getTyped @DeciderLabel ccReq) (getTyped @NrVariants ccReq)) >>= \case
+  runExceptT (createDecider (getTyped @DeciderLabel ccReq) (getField @"variants" ccReq)) >>= \case
     Left e -> throwError $
       clientErrorAsServantError $ case e of
         CreateDeciderAggregateError aggE -> mapAggregateError Nothing aggE
@@ -107,21 +107,6 @@ deciderSummarise _user deciderId =
         DeciderSummaryAggregateError aggE -> mapAggregateError (Just deciderId) aggE
     Right v ->
       pure v
-
-deciderDecide ::
-  (MonadIO m, MonadReader AppEnv m, MonadError ServerError m) =>
-  User ->
-  DeciderId ->
-  DecisionId ->
-  m Variant
-deciderDecide _user deciderId dId =
-  runExceptT (decideDecider deciderId dId) >>= \case
-    Left e ->
-      throwError $
-        clientErrorAsServantError $ case e of
-          DecideAggregateError aggE -> mapAggregateError (Just deciderId) aggE
-          DecideWriteError we -> mapWriteError we
-    Right v -> pure v
 
 deciderDecisionSummarise ::
   (MonadIO m, MonadReader AppEnv m, MonadError ServerError m) =>
@@ -143,22 +128,21 @@ deciderRecordDecision ::
   DeciderId ->
   DecisionId ->
   RecordDecisionRequest ->
-  m NoContent
+  m Variant
 deciderRecordDecision _user deciderId dId recordDecReq =
-  runExceptT
-    ( recordDecision
-        deciderId
-        dId
-        (getTyped @Variant recordDecReq)
-        (getField @"decisionTime" recordDecReq)
-    )
-    >>= \case
-      Left e ->
-        throwError $
-          clientErrorAsServantError $ case e of
-            DecideAggregateError aggE -> mapAggregateError (Just deciderId) aggE
-            DecideWriteError we -> mapWriteError we
-      Right () -> pure NoContent
+  let action = case getField @"variant" recordDecReq of
+        RandomDecisionVar ->
+          recordDecisionRandom deciderId dId
+        ManualDecisionVar var decisionTime ->
+          recordDecisionManual deciderId dId var decisionTime
+   in runExceptT action
+        >>= \case
+          Left e ->
+            throwError $
+              clientErrorAsServantError $ case e of
+                DecideAggregateError aggE -> mapAggregateError (Just deciderId) aggE
+                DecideWriteError we -> mapWriteError we
+          Right v -> pure v
 
 deciderDecisionInvalidate ::
   (MonadIO m, MonadReader AppEnv m, MonadError ServerError m) =>
@@ -188,7 +172,6 @@ deciderRoutes u =
   DeciderRoutes
     { _deciderCreate = deciderCreate u,
       _deciderSummarise = deciderSummarise u,
-      _deciderDecide = deciderDecide u,
       _deciderDecisionSummarise = deciderDecisionSummarise u,
       _deciderRecordDecision = deciderRecordDecision u,
       _deciderDecisionInvalidate = deciderDecisionInvalidate u,

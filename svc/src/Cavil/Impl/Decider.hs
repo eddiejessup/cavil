@@ -17,12 +17,13 @@ import qualified Data.UUID.V4 as UUID.V4
 import qualified Database.PostgreSQL.Simple as PG
 import Protolude hiding ((%))
 
-pickVariant :: NrVariants -> DecisionId -> Variant
-pickVariant nrVariants decisionId =
+pickVariant :: VariantList -> DecisionId -> Variant
+pickVariant variants decisionId =
   let (w1, w2, w3, w4) = UUID.toWords $ getTyped @UUID decisionId
       nonModuloInt = abs $ sum $ fromIntegral @Word32 @Int <$> [w1, w2, w3, w4]
-      moduloInt = nonModuloInt `mod` getTyped @Int nrVariants
-   in case mkVariant moduloInt of
+      varListList = getTyped @[Variant] variants
+      moduloInt = nonModuloInt `mod` length varListList
+   in case varListList `atMay` moduloInt of
         Nothing -> panic "impossible"
         Just v -> v
 
@@ -53,12 +54,12 @@ createDecider ::
     HasType PG.Connection r
   ) =>
   DeciderLabel ->
-  NrVariants ->
+  VariantList ->
   m DeciderId
-createDecider deciderLabel nrVariants = do
+createDecider deciderLabel variants = do
   deciderId <- DeciderId <$> liftIO UUID.V4.nextRandom
   (agg, valAggId) <- fetchInitialDeciderAggById deciderId
-  let newEvts = [DeciderCreated (DeciderCreatedEvent deciderLabel nrVariants)]
+  let newEvts = [DeciderCreated (DeciderCreatedEvent deciderLabel variants)]
   void $ insertEventsValidated valAggId agg newEvts
   pure deciderId
 
@@ -78,7 +79,7 @@ summariseDecider deciderId = do
       { id = deciderId,
         nextDecisionId = nextDecisionIdFromAgg deciderId agg,
         label = getTyped @DeciderLabel agg,
-        nrVariants = getTyped @NrVariants agg,
+        variants = getTyped @VariantList agg,
         decisions
       }
   where
@@ -102,7 +103,7 @@ summariseDecider deciderId = do
             DecisionIsNotValid reason -> Just reason
         }
 
-decideDecider ::
+recordDecisionRandom ::
   ( MonadIO m,
     MonadError e m,
     AsType (AggregateErrorWithState DeciderAggregateError) e,
@@ -113,12 +114,12 @@ decideDecider ::
   DeciderId ->
   DecisionId ->
   m Variant
-decideDecider deciderId reqDecisionId = do
+recordDecisionRandom deciderId reqDecisionId = do
   (agg, valAggId) <- fetchCreatedDeciderAggById deciderId
   case List.lookup reqDecisionId (getField @"decisions" agg) of
     Nothing -> do
       nowTime <- liftIO T.getCurrentTime
-      let decidedVariant = pickVariant (getTyped @NrVariants agg) reqDecisionId
+      let decidedVariant = pickVariant (getTyped @VariantList agg) reqDecisionId
 
       let newEvts = [DecisionMade (DecisionMadeEvent reqDecisionId decidedVariant nowTime)]
       void $ insertEventsValidated valAggId (Just agg) newEvts
@@ -145,7 +146,7 @@ summariseDecision deciderId reqDecisionId = do
     Just existingDecAgg ->
       pure $ getTyped @Variant existingDecAgg
 
-recordDecision ::
+recordDecisionManual ::
   ( MonadIO m,
     MonadError e m,
     AsType (AggregateErrorWithState DeciderAggregateError) e,
@@ -157,13 +158,13 @@ recordDecision ::
   DecisionId ->
   Variant ->
   T.UTCTime ->
-  m ()
-recordDecision deciderId reqDecisionId decidedVariant decisionTime = do
+  m Variant
+recordDecisionManual deciderId reqDecisionId decidedVariant decisionTime = do
   (agg, valAggId) <- fetchCreatedDeciderAggById deciderId
   case List.lookup reqDecisionId (getField @"decisions" agg) of
     Nothing -> do
-      let possVariants = allVariants $ getTyped @NrVariants agg
-      unless (decidedVariant `elem` possVariants) $
+      let possVariants = getTyped @VariantList agg
+      unless (decidedVariant `elem` (getTyped @[Variant] possVariants)) $
         throwError $ injectTyped $ AggregateErrorWithState (AggregateDuringRequest valAggId) NoSuchVariant
 
       let newEvts = [DecisionMade (DecisionMadeEvent reqDecisionId decidedVariant decisionTime)]
@@ -171,6 +172,7 @@ recordDecision deciderId reqDecisionId decidedVariant decisionTime = do
     Just existingDecAgg -> do
       unless (decidedVariant == getTyped @Variant existingDecAgg) $
         throwError $ injectTyped $ AggregateErrorWithState (AggregateDuringRequest valAggId) InconsistentVariant
+  pure decidedVariant
 
 invalidateDecision ::
   ( MonadIO m,

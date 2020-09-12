@@ -25,8 +25,6 @@ library
       Cavil.Event.Common
       Cavil.Event.Decider
       Cavil.Hashing
-      Cavil.Impl
-      Cavil.Impl.Common
       Cavil.Impl.Decider
       Cavil.Serve
       Cavil.Serve.Common

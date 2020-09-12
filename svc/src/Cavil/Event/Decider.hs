@@ -34,7 +34,7 @@ instance PG.ToField DeciderEvent where
 
 data DeciderCreatedEvent = DeciderCreatedEvent
   { deciderLabel :: DeciderLabel,
-    nrVariants :: NrVariants
+    variants :: VariantList
   }
   deriving stock (Generic)
   deriving anyclass (Ae.ToJSON, Ae.FromJSON)
@@ -60,7 +60,7 @@ data DecisionInvalidatedEvent = DecisionInvalidatedEvent
 
 data DeciderAggregate = DeciderAggregate
   { deciderLabel :: DeciderLabel,
-    nrVariants :: NrVariants,
+    variants :: VariantList,
     decisions :: DecisionsMap
   }
   deriving stock (Generic)
@@ -69,7 +69,7 @@ initialDeciderAggregate :: DeciderCreatedEvent -> DeciderAggregate
 initialDeciderAggregate ev =
   DeciderAggregate
     { deciderLabel = ev ^. typed @DeciderLabel,
-      nrVariants = ev ^. typed @NrVariants,
+      variants = ev ^. typed @VariantList,
       decisions = []
     }
 
