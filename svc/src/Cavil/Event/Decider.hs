@@ -158,8 +158,10 @@ data DeciderAggregateError
   = DeciderAlreadyExists
   | NoSuchDecider
   | NoSuchDecision
+  | NoSuchVariant
   | IncoherentDecisionId
   | DecisionAlreadyInvalidated
+  | InconsistentVariant
   deriving stock (Generic, Show)
 
 -- /Errors.

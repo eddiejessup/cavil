@@ -6,10 +6,10 @@
 module Cavil.Serve.Decider where
 
 import Cavil.Api
-import Cavil.Api.Decider
 import Cavil.Api.Common
-import Cavil.Event.Decider
+import Cavil.Api.Decider
 import Cavil.Event.Common
+import Cavil.Event.Decider
 import Cavil.Impl.Decider
 import Cavil.Serve.Common
 import Data.Aeson ((.=))
@@ -32,6 +32,10 @@ data DecideError
   | DecideWriteError WriteError
   deriving stock (Generic)
 
+data DecisionSummaryError
+  = DecisionSummaryAggregateError (AggregateErrorWithState DeciderAggregateError)
+  deriving stock (Generic)
+
 data InvalidateDecisionError
   = InvalidateDecisionAggregateError (AggregateErrorWithState DeciderAggregateError)
   | InvalidateDecisionWriteError WriteError
@@ -48,10 +52,14 @@ mapAggregateError mayDeciderId (AggregateErrorWithState aggState detail) =
               "Decider events before decider creation"
             NoSuchDecision ->
               "Decision events before decision creation"
+            NoSuchVariant ->
+              "Unknown variants in decision chain"
             IncoherentDecisionId ->
               "Incoherent IDs in decision chain"
             DecisionAlreadyInvalidated ->
               "Multiple invalidations of decision"
+            InconsistentVariant ->
+              "Ambiguous decision-variant"
        in simpleClientError OurFault detailMsg vals
     AggregateDuringRequest _ ->
       let detailMsg = case detail of
@@ -61,10 +69,14 @@ mapAggregateError mayDeciderId (AggregateErrorWithState aggState detail) =
               "No such decider found"
             NoSuchDecision ->
               "No such decision found"
+            NoSuchVariant ->
+              "Variant not an option"
             IncoherentDecisionId ->
               "Incoherent decision ID"
             DecisionAlreadyInvalidated ->
               "Decision has already been invalidated"
+            InconsistentVariant ->
+              "Manual decision-variant is inconsistent with existing variant"
        in simpleClientError OurFault detailMsg vals
   where
     vals = maybe mempty ("deciderId" .=) mayDeciderId
@@ -111,6 +123,43 @@ deciderDecide _user deciderId dId =
           DecideWriteError we -> mapWriteError we
     Right v -> pure v
 
+deciderDecisionSummarise ::
+  (MonadIO m, MonadReader AppEnv m, MonadError ServerError m) =>
+  User ->
+  DeciderId ->
+  DecisionId ->
+  m Variant
+deciderDecisionSummarise _user deciderId dId =
+  runExceptT (summariseDecision deciderId dId) >>= \case
+    Left e ->
+      throwError $
+        clientErrorAsServantError $ case e of
+          DecisionSummaryAggregateError aggE -> mapAggregateError (Just deciderId) aggE
+    Right v -> pure v
+
+deciderRecordDecision ::
+  (MonadIO m, MonadReader AppEnv m, MonadError ServerError m) =>
+  User ->
+  DeciderId ->
+  DecisionId ->
+  RecordDecisionRequest ->
+  m NoContent
+deciderRecordDecision _user deciderId dId recordDecReq =
+  runExceptT
+    ( recordDecision
+        deciderId
+        dId
+        (getTyped @Variant recordDecReq)
+        (getField @"decisionTime" recordDecReq)
+    )
+    >>= \case
+      Left e ->
+        throwError $
+          clientErrorAsServantError $ case e of
+            DecideAggregateError aggE -> mapAggregateError (Just deciderId) aggE
+            DecideWriteError we -> mapWriteError we
+      Right () -> pure NoContent
+
 deciderDecisionInvalidate ::
   (MonadIO m, MonadReader AppEnv m, MonadError ServerError m) =>
   User ->
@@ -119,7 +168,7 @@ deciderDecisionInvalidate ::
   InvalidateDecisionRequest ->
   m NoContent
 deciderDecisionInvalidate _user deciderId dId invalidateReq =
-  runExceptT (invalidateDecision deciderId dId (getField @"reason" invalidateReq)) >>= \case
+  runExceptT (invalidateDecision deciderId dId (getTyped @_ invalidateReq)) >>= \case
     Left e ->
       throwError $
         clientErrorAsServantError $ case e of
@@ -140,6 +189,8 @@ deciderRoutes u =
     { _deciderCreate = deciderCreate u,
       _deciderSummarise = deciderSummarise u,
       _deciderDecide = deciderDecide u,
+      _deciderDecisionSummarise = deciderDecisionSummarise u,
+      _deciderRecordDecision = deciderRecordDecision u,
       _deciderDecisionInvalidate = deciderDecisionInvalidate u,
       _decidersSummarise = decidersSummarise u
     }

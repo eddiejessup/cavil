@@ -5,8 +5,8 @@
 module Cavil.Impl.Decider where
 
 import Cavil.Api.Decider
-import Cavil.Event.Decider
 import Cavil.Event.Common
+import Cavil.Event.Decider
 import Data.Generics.Product.Typed
 import Data.Generics.Sum (AsType, injectTyped)
 import qualified Data.List as List
@@ -126,6 +126,51 @@ decideDecider deciderId reqDecisionId = do
       pure decidedVariant
     Just existingDecAgg ->
       pure $ getTyped @Variant existingDecAgg
+
+summariseDecision ::
+  ( MonadIO m,
+    MonadError e m,
+    AsType (AggregateErrorWithState DeciderAggregateError) e,
+    MonadReader r m,
+    HasType PG.Connection r
+  ) =>
+  DeciderId ->
+  DecisionId ->
+  m Variant
+summariseDecision deciderId reqDecisionId = do
+  (agg, valAggId) <- fetchCreatedDeciderAggById deciderId
+  case List.lookup reqDecisionId (getField @"decisions" agg) of
+    Nothing ->
+      throwError $ injectTyped $ AggregateErrorWithState (AggregateDuringRequest valAggId) NoSuchDecision
+    Just existingDecAgg ->
+      pure $ getTyped @Variant existingDecAgg
+
+recordDecision ::
+  ( MonadIO m,
+    MonadError e m,
+    AsType (AggregateErrorWithState DeciderAggregateError) e,
+    AsType WriteError e,
+    MonadReader r m,
+    HasType PG.Connection r
+  ) =>
+  DeciderId ->
+  DecisionId ->
+  Variant ->
+  T.UTCTime ->
+  m ()
+recordDecision deciderId reqDecisionId decidedVariant decisionTime = do
+  (agg, valAggId) <- fetchCreatedDeciderAggById deciderId
+  case List.lookup reqDecisionId (getField @"decisions" agg) of
+    Nothing -> do
+      let possVariants = allVariants $ getTyped @NrVariants agg
+      unless (decidedVariant `elem` possVariants) $
+        throwError $ injectTyped $ AggregateErrorWithState (AggregateDuringRequest valAggId) NoSuchVariant
+
+      let newEvts = [DecisionMade (DecisionMadeEvent reqDecisionId decidedVariant decisionTime)]
+      void $ insertEventsValidated valAggId (Just agg) newEvts
+    Just existingDecAgg -> do
+      unless (decidedVariant == getTyped @Variant existingDecAgg) $
+        throwError $ injectTyped $ AggregateErrorWithState (AggregateDuringRequest valAggId) InconsistentVariant
 
 invalidateDecision ::
   ( MonadIO m,

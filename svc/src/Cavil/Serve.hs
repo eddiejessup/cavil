@@ -1,15 +1,14 @@
 {-# LANGUAGE BlockArguments #-}
+{-# LANGUAGE CPP #-}
 {-# LANGUAGE DuplicateRecordFields #-}
 {-# LANGUAGE TemplateHaskell #-}
 {-# LANGUAGE UndecidableInstances #-}
-{-# LANGUAGE CPP #-}
 
 module Cavil.Serve where
 
 import Cavil.Api
-import Cavil.Serve.Decider
 import Cavil.Serve.Common
-import Cavil.Serve.Ledger
+import Cavil.Serve.Decider
 #ifndef __GHCIDE__
 import qualified Distribution.PackageDescription.TH as P
 #endif
@@ -22,7 +21,6 @@ siteRoutes :: SiteRoutes (AsServerT AppM)
 siteRoutes =
   SiteRoutes
     { _decider = toServant . deciderRoutes,
-      _ledger = toServant . ledgerRoutes,
       _version = pure version
     }
 

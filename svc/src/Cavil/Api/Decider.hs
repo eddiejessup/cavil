@@ -12,10 +12,13 @@ import Servant
 import Servant.API.Generic
 
 -- API.
+
 data DeciderRoutes route = DeciderRoutes
-  { _deciderCreate :: route :- ReqBody '[JSON] CreateDeciderRequest :> Put '[JSON] DeciderId,
+  { _deciderCreate :: route :- ReqBody '[JSON] CreateDeciderRequest :> Post '[JSON] DeciderId,
     _deciderSummarise :: route :- Capture "deciderId" DeciderId :> Get '[JSON] DeciderSummary,
     _deciderDecide :: route :- Capture "deciderId" DeciderId :> Capture "decisionId" DecisionId :> Put '[JSON] Variant,
+    _deciderDecisionSummarise :: route :- Capture "deciderId" DeciderId :> Capture "decisionId" DecisionId :> Get '[JSON] Variant,
+    _deciderRecordDecision :: route :- Capture "deciderId" DeciderId :> Capture "decisionId" DecisionId :> "manual" :> ReqBody '[JSON] RecordDecisionRequest :> Put '[JSON] NoContent,
     _deciderDecisionInvalidate :: route :- Capture "deciderId" DeciderId :> Capture "decisionId" DecisionId :> "invalidate" :> ReqBody '[JSON] InvalidateDecisionRequest :> Post '[JSON] NoContent,
     _decidersSummarise :: route :- Get '[JSON] [DeciderSummary]
   }
@@ -30,7 +33,7 @@ newtype DeciderId = DeciderId {unDeciderId :: UUID}
 
 newtype Variant = Variant {unVariant :: Int}
   deriving stock (Generic, Show)
-  deriving newtype (Eq, Ord, Ae.ToJSON)
+  deriving newtype (Eq, Ord, Ae.ToJSON, FromHttpApiData)
 
 instance Ae.FromJSON Variant where
   parseJSON value = do
@@ -48,7 +51,7 @@ mkVariant n
 
 newtype NrVariants = NrVariants {unNrVariants :: Int}
   deriving stock (Generic, Show)
-  deriving newtype (Ae.ToJSON)
+  deriving newtype (Enum, Ae.ToJSON)
 
 instance Ae.FromJSON NrVariants where
   parseJSON value = do
@@ -63,6 +66,9 @@ mkNrVariants :: Int -> Maybe NrVariants
 mkNrVariants n
   | n < 2 = Nothing
   | otherwise = Just $ NrVariants n
+
+allVariants :: NrVariants -> [Variant]
+allVariants (NrVariants n) = Variant <$> [0 .. n - 1]
 
 newtype DecisionId = DecisionId {unDecisionId :: UUID}
   deriving stock (Generic, Show)
@@ -79,6 +85,13 @@ newtype DeciderLabel = DeciderLabel {unDeciderLabel :: Text}
 data CreateDeciderRequest = CreateDeciderRequest
   { label :: DeciderLabel,
     nrVariants :: NrVariants
+  }
+  deriving stock (Generic)
+  deriving anyclass (Ae.FromJSON)
+
+data RecordDecisionRequest = RecordDecisionRequest
+  { variant :: Variant,
+    decisionTime :: T.UTCTime
   }
   deriving stock (Generic)
   deriving anyclass (Ae.FromJSON)

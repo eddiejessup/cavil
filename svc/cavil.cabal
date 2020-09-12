@@ -22,19 +22,15 @@ library
       Cavil.Api
       Cavil.Api.Common
       Cavil.Api.Decider
-      Cavil.Api.Ledger
       Cavil.Event.Common
       Cavil.Event.Decider
-      Cavil.Event.Ledger
       Cavil.Hashing
       Cavil.Impl
       Cavil.Impl.Common
       Cavil.Impl.Decider
-      Cavil.Impl.Ledger
       Cavil.Serve
       Cavil.Serve.Common
       Cavil.Serve.Decider
-      Cavil.Serve.Ledger
   other-modules:
       Paths_cavil
   hs-source-dirs:
