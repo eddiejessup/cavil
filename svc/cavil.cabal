@@ -22,6 +22,7 @@ library
       Cavil.Api
       Cavil.Api.Common
       Cavil.Api.Decider
+      Cavil.Api.Decider.Var
       Cavil.Event.Common
       Cavil.Event.Decider
       Cavil.Hashing

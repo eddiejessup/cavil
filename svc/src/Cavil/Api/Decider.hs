@@ -4,8 +4,7 @@
 
 module Cavil.Api.Decider where
 
-import Control.Monad.Fail (MonadFail (fail))
-import Data.Aeson ((.:))
+import Cavil.Api.Decider.Var
 import Data.Aeson qualified as Ae
 import Data.Time.Clock qualified as T
 import Data.UUID (UUID)
@@ -17,11 +16,11 @@ import Servant.API.Generic
 
 data DeciderRoutes route = DeciderRoutes
   { _deciderCreate :: route :- ReqBody '[JSON] CreateDeciderRequest :> Post '[JSON] DeciderId,
-    _deciderSummarise :: route :- Capture "deciderId" DeciderId :> Get '[JSON] DeciderSummary,
-    _deciderRecordDecision :: route :- Capture "deciderId" DeciderId :> Capture "decisionId" DecisionId :> ReqBody '[JSON] RecordDecisionRequest :> Put '[JSON] Variant,
-    _deciderDecisionSummarise :: route :- Capture "deciderId" DeciderId :> Capture "decisionId" DecisionId :> Get '[JSON] Variant,
-    _deciderDecisionInvalidate :: route :- Capture "deciderId" DeciderId :> Capture "decisionId" DecisionId :> "invalidate" :> ReqBody '[JSON] InvalidateDecisionRequest :> Post '[JSON] NoContent,
-    _decidersSummarise :: route :- Get '[JSON] [DeciderSummary]
+    -- _deciderSummarise :: route :- Capture "deciderId" DeciderId :> Get '[JSON] DeciderSummary,
+    _deciderRecordDecision :: route :- Capture "deciderId" DeciderId :> Capture "decisionId" DecisionId :> ReqBody '[JSON] RecordDecisionRequest :> Put '[JSON] RecordDecisionResponse,
+    -- _deciderDecisionSummarise :: route :- Capture "deciderId" DeciderId :> Capture "decisionId" DecisionId :> Get '[JSON] VariantSelection,
+    _deciderDecisionInvalidate :: route :- Capture "deciderId" DeciderId :> Capture "decisionId" DecisionId :> "invalidate" :> ReqBody '[JSON] InvalidateDecisionRequest :> Post '[JSON] NoContent
+    -- _decidersSummarise :: route :- Get '[JSON] [DeciderSummary]
   }
   deriving stock (Generic)
 
@@ -32,28 +31,6 @@ newtype DeciderId = DeciderId {unDeciderId :: UUID}
   deriving stock (Generic, Show)
   deriving newtype (Eq, Ord, Ae.ToJSON, Ae.FromJSON, FromHttpApiData)
 
-newtype Variant = Variant {unVariant :: Text}
-  deriving stock (Generic, Show)
-  deriving newtype (Eq, Ord, Ae.ToJSON, Ae.FromJSON, FromHttpApiData)
-
-newtype VariantList = VariantList {unVariantList :: [Variant]}
-  deriving stock (Generic, Show)
-  deriving newtype (Ae.ToJSON)
-
-instance Ae.FromJSON VariantList where
-  parseJSON value = do
-    vs <- Ae.parseJSON @[Variant] value
-    case mkVariantList vs of
-      Nothing ->
-        fail $ "parsing VariantList failed, fewer than two variants: " <> show vs
-      Just v ->
-        pure v
-
-mkVariantList :: [Variant] -> Maybe VariantList
-mkVariantList vs
-  | length vs < 2 = Nothing
-  | otherwise = Just $ VariantList vs
-
 newtype DecisionId = DecisionId {unDecisionId :: UUID}
   deriving stock (Generic, Show)
   deriving newtype (Ae.ToJSON, Ae.FromJSON, Eq, FromHttpApiData)
@@ -63,36 +40,30 @@ newtype DeciderLabel = DeciderLabel {unDeciderLabel :: Text}
   deriving stock (Generic, Show)
   deriving newtype (Ae.ToJSON, Ae.FromJSON, FromHttpApiData)
 
+newtype FieldLabel = FieldLabel {unFieldLabel :: Text}
+  deriving stock (Generic, Show)
+  deriving newtype (Eq, Ord, Ae.ToJSONKey, Ae.FromJSONKey, FromHttpApiData, ToHttpApiData)
+
+newtype FieldId = FieldId {unFieldId :: UUID}
+  deriving stock (Generic, Show)
+  deriving newtype (Ae.ToJSON, Ae.FromJSON, Eq, FromHttpApiData)
+  deriving newtype (Ord) -- For use in a Map
+
 -- /Interface domain types.
 
 -- Request interfaces.
 data CreateDeciderRequest = CreateDeciderRequest
   { label :: DeciderLabel,
-    variants :: VariantList
+    schema :: DeciderSchema
   }
   deriving stock (Generic)
   deriving anyclass (Ae.FromJSON)
 
-data RecordDecisionRequest = RecordDecisionRequest
-  { variant :: DecisionVar Variant
-  }
-  deriving stock (Generic)
-  deriving anyclass (Ae.FromJSON)
+type DeciderSchema = Map FieldLabel VariantList
 
-data DecisionVar a
-  = RandomDecisionVar
-  | ManualDecisionVar a T.UTCTime
-  deriving stock (Generic)
+type RecordDecisionRequest = Map FieldLabel (DecisionVar RawVariantSelection)
 
-instance Ae.FromJSON a => Ae.FromJSON (DecisionVar a) where
-  parseJSON = \case
-    Ae.Null -> pure RandomDecisionVar
-    v ->
-      let parse obj =
-            ManualDecisionVar
-              <$> obj .: "v"
-              <*> obj .: "decisionTime"
-       in Ae.withObject "ManualDecisionVar" parse v
+type RecordDecisionResponse = Map FieldLabel (EvalVar VariantSelection)
 
 data InvalidateDecisionRequest = InvalidateDecisionRequest
   { reason :: Text
@@ -107,7 +78,7 @@ data DeciderSummary = DeciderSummary
   { id :: DeciderId,
     nextDecisionId :: DecisionId,
     label :: DeciderLabel,
-    variants :: VariantList,
+    schema :: DeciderSchema,
     decisions :: [DecisionSummary]
   }
   deriving stock (Generic)
@@ -116,7 +87,7 @@ data DeciderSummary = DeciderSummary
 data DecisionSummary = DecisionSummary
   { id :: DecisionId,
     decisionTime :: T.UTCTime,
-    variant :: Variant,
+    variant :: VariantSelection,
     isValid :: Bool,
     invalidationReason :: Maybe Text
   }

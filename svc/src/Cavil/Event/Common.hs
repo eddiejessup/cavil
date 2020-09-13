@@ -20,7 +20,7 @@ foldAllEventsIntoAggregate aggState = foldIncrementalEventsIntoAggregate aggStat
 foldIncrementalEventsIntoAggregate :: (MonadError e m, AsType (AggregateErrorWithState (AggErr evt)) e, CavilEvent evt) => AggregateState -> Maybe (EvtAggregate evt) -> [evt] -> m (Maybe (EvtAggregate evt))
 foldIncrementalEventsIntoAggregate aggState = foldM (foldEvt aggState)
 
-class (PG.ToField evt, PG.FromField evt) => CavilEvent evt where
+class CavilEvent evt where
   type EvtAggregate evt
 
   type AggErr evt
@@ -31,7 +31,7 @@ class (PG.ToField evt, PG.FromField evt) => CavilEvent evt where
 
 getAggregate ::
   forall e r m evt.
-  (MonadIO m, MonadError e m, AsType (AggregateErrorWithState (AggErr evt)) e, MonadReader r m, HasType PG.Connection r, CavilEvent evt) =>
+  (MonadIO m, MonadError e m, AsType (AggregateErrorWithState (AggErr evt)) e, MonadReader r m, HasType PG.Connection r, PG.FromField evt, CavilEvent evt) =>
   AggregateState ->
   Proxy evt ->
   m (Maybe (EvtAggregate evt), AggregateValidatedToken)
@@ -82,7 +82,7 @@ getAllAggIds pxy = do
   pure $ PG.fromOnly <$> aggIds
 
 insertEventsValidated ::
-  (MonadIO m, MonadError e m, AsType (AggregateErrorWithState (AggErr evt)) e, AsType WriteError e, MonadReader r m, HasType PG.Connection r, CavilEvent evt) =>
+  (MonadIO m, MonadError e m, AsType (AggregateErrorWithState (AggErr evt)) e, AsType WriteError e, MonadReader r m, HasType PG.Connection r, CavilEvent evt, PG.ToField evt) =>
   AggregateValidatedToken ->
   Maybe (EvtAggregate evt) ->
   [evt] ->
@@ -95,7 +95,7 @@ insertEventsValidated valAggId curAgg evts = do
 
 insertEvents ::
   forall e r m evt.
-  (MonadIO m, MonadError e m, AsType WriteError e, MonadReader r m, HasType PG.Connection r, CavilEvent evt) =>
+  (MonadIO m, MonadError e m, AsType WriteError e, MonadReader r m, HasType PG.Connection r, PG.ToField evt, CavilEvent evt) =>
   AggregateValidatedToken ->
   [evt] ->
   m ()

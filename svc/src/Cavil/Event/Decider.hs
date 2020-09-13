@@ -5,13 +5,13 @@
 module Cavil.Event.Decider where
 
 import Cavil.Api.Decider
+import Cavil.Api.Decider.Var
 import Cavil.Event.Common
 import Cavil.Hashing (nextDecisionId)
 import qualified Data.Aeson as Ae
 import Data.Generics.Product.Typed
 import Data.Generics.Sum (AsType, injectTyped)
 import qualified Data.List as List
-import Data.Time.Clock (UTCTime)
 import qualified Database.PostgreSQL.Simple.FromField as PG
 import qualified Database.PostgreSQL.Simple.ToField as PG
 import Optics
@@ -21,31 +21,40 @@ import Protolude hiding (to, (%))
 
 data DeciderEvent
   = DeciderCreated DeciderCreatedEvent
-  | DecisionMade DecisionMadeEvent
+  | DecisionMade (DecisionMadeEvent)
   | DecisionInvalidated DecisionInvalidatedEvent
   deriving stock (Generic)
-  deriving anyclass (Ae.ToJSON, Ae.FromJSON)
 
-instance PG.FromField DeciderEvent where
+deriving anyclass instance Ae.ToJSON (DeciderEvent)
+
+deriving anyclass instance Ae.FromJSON (DeciderEvent)
+
+instance PG.FromField (DeciderEvent) where
   fromField = PG.fromJSONField
 
-instance PG.ToField DeciderEvent where
+instance PG.ToField (DeciderEvent) where
   toField = PG.toJSONField
 
 data DeciderCreatedEvent = DeciderCreatedEvent
   { deciderLabel :: DeciderLabel,
-    variants :: VariantList
+    schema :: InternalDeciderSchema
   }
   deriving stock (Generic)
   deriving anyclass (Ae.ToJSON, Ae.FromJSON)
 
+type InternalDeciderSchema = Map FieldLabel (VariantList, FieldId)
+
+type InternalDecision = Map FieldLabel (EvalVar VariantSelection)
+
 data DecisionMadeEvent = DecisionMadeEvent
   { decisionId :: DecisionId,
-    variant :: Variant,
-    decisionTime :: UTCTime
+    decision :: InternalDecision
   }
   deriving stock (Generic)
-  deriving anyclass (Ae.ToJSON, Ae.FromJSON)
+
+deriving anyclass instance Ae.ToJSON (DecisionMadeEvent)
+
+deriving anyclass instance Ae.FromJSON (DecisionMadeEvent)
 
 data DecisionInvalidatedEvent = DecisionInvalidatedEvent
   { decisionId :: DecisionId,
@@ -60,7 +69,7 @@ data DecisionInvalidatedEvent = DecisionInvalidatedEvent
 
 data DeciderAggregate = DeciderAggregate
   { deciderLabel :: DeciderLabel,
-    variants :: VariantList,
+    schema :: InternalDeciderSchema,
     decisions :: DecisionsMap
   }
   deriving stock (Generic)
@@ -68,16 +77,15 @@ data DeciderAggregate = DeciderAggregate
 initialDeciderAggregate :: DeciderCreatedEvent -> DeciderAggregate
 initialDeciderAggregate ev =
   DeciderAggregate
-    { deciderLabel = ev ^. typed @DeciderLabel,
-      variants = ev ^. typed @VariantList,
+    { deciderLabel = getTyped @DeciderLabel ev,
+      schema = getTyped @InternalDeciderSchema ev,
       decisions = []
     }
 
 type DecisionsMap = [(DecisionId, DecisionAggregate)]
 
 data DecisionAggregate = DecisionAggregate
-  { decisionTime :: UTCTime,
-    variant :: Variant,
+  { decision :: InternalDecision,
     status :: DecisionValidity
   }
   deriving stock (Generic)
@@ -89,8 +97,7 @@ data DecisionValidity
 initialDecisionAggregate :: DecisionMadeEvent -> DecisionAggregate
 initialDecisionAggregate ev =
   DecisionAggregate
-    { decisionTime = getTyped @UTCTime ev,
-      variant = getTyped @Variant ev,
+    { decision = getTyped @(InternalDecision) ev,
       status = DecisionIsValid
     }
 
@@ -180,10 +187,10 @@ deciderLabelsFromEvents = foldl' go []
 
 -- Instance.
 
-instance CavilEvent DeciderEvent where
-  type EvtAggregate DeciderEvent = DeciderAggregate
+instance CavilEvent (DeciderEvent) where
+  type EvtAggregate (DeciderEvent) = DeciderAggregate
 
-  type AggErr DeciderEvent = DeciderAggregateError
+  type AggErr (DeciderEvent) = DeciderAggregateError
 
   eventType _pxy = "decider"
 
