@@ -130,14 +130,14 @@ deciderRecordDecision ::
   RecordDecisionRequest ->
   m RecordDecisionResponse
 deciderRecordDecision _user deciderId dId recordDecReq =
-   runExceptT (recordDecisionRandom deciderId dId recordDecReq)
-      >>= \case
-        Left e ->
-          throwError $
-            clientErrorAsServantError $ case e of
-              DecideAggregateError aggE -> mapAggregateError (Just deciderId) aggE
-              DecideWriteError we -> mapWriteError we
-        Right v -> pure v
+  runExceptT (recordDecisionRandom deciderId dId recordDecReq)
+    >>= \case
+      Left e ->
+        throwError $
+          clientErrorAsServantError $ case e of
+            DecideAggregateError aggE -> mapAggregateError (Just deciderId) aggE
+            DecideWriteError we -> mapWriteError we
+      Right v -> pure v
 
 deciderDecisionInvalidate ::
   (MonadIO m, MonadReader AppEnv m, MonadError ServerError m) =>

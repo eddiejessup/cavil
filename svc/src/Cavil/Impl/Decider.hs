@@ -82,7 +82,7 @@ summariseDecider deciderId = do
 
   let decisions =
         sortBy cmpDecisionCreationTime (getField @"decisions" agg)
-        <&> \(id, (createTime, decAgg)) -> toDecisionSummary id createTime decAgg
+          <&> \(id, (createTime, decAgg)) -> toDecisionSummary id createTime decAgg
 
   pure $
     DeciderSummary

@@ -7,13 +7,13 @@ module Cavil.Event.Common where
 import Data.Generics.Product.Typed
 import Data.Generics.Sum (AsType, injectTyped)
 import qualified Data.List as List
+import Data.Time (UTCTime)
 import Data.UUID (UUID)
 import qualified Database.PostgreSQL.Simple as PG
 import qualified Database.PostgreSQL.Simple.FromField as PG
 import qualified Database.PostgreSQL.Simple.ToField as PG
 import Optics
 import Protolude hiding (to, (%))
-import Data.Time (UTCTime)
 
 foldAllEventsIntoAggregate :: (MonadError e m, AsType (AggregateErrorWithState (AggErr evt)) e, CavilEvent evt) => AggregateState -> [(evt, UTCTime)] -> m (Maybe (EvtAggregate evt))
 foldAllEventsIntoAggregate aggState = foldIncrementalEventsIntoAggregate aggState Nothing

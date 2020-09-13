@@ -1,26 +1,26 @@
 {-# LANGUAGE ImportQualifiedPost #-}
 
 module Cavil.Api.Decider.Var
-    ( EvalVar(..),
-      DecisionVar(..),
-      Variant(..),
-      RawVariantSelection(..),
-      VariantSelection,
-      VariantList(..),
-      selectVariantByIdx,
-      selectVariantByLabel,
-      variantSelectionVariant,
-      mkVariantList,
-      collectMaybeEvalVar,
-    )
-    where
+  ( EvalVar (..),
+    DecisionVar (..),
+    Variant (..),
+    RawVariantSelection (..),
+    VariantSelection,
+    VariantList (..),
+    selectVariantByIdx,
+    selectVariantByLabel,
+    variantSelectionVariant,
+    mkVariantList,
+    collectMaybeEvalVar,
+  )
+where
 
-import Protolude
+import Control.Monad.Fail (MonadFail (fail))
 import Data.Aeson ((.:))
 import Data.Aeson qualified as Ae
 import Data.Time.Clock qualified as T
+import Protolude
 import Servant.API (FromHttpApiData)
-import Control.Monad.Fail (MonadFail(fail))
 
 data DecisionVar a
   = RandomDecisionVar
@@ -46,6 +46,7 @@ distributeMaybeEvalVar EvalVar {v = Just a, decisionTime} = Just EvalVar {v = a,
 
 collectMaybeEvalVar :: (a -> Maybe b) -> EvalVar a -> Maybe (EvalVar b)
 collectMaybeEvalVar f = distributeMaybeEvalVar . fmap f
+
 -- /Mimicks API of 'distributive'
 
 instance Ae.FromJSON a => Ae.FromJSON (EvalVar a) where
@@ -54,7 +55,6 @@ instance Ae.FromJSON a => Ae.FromJSON (EvalVar a) where
       EvalVar
         <$> obj .: "v"
         <*> obj .: "decisionTime"
-
 
 newtype Variant = UnsafeVariant {unVariant :: Text}
   deriving stock (Generic, Show)
@@ -70,14 +70,14 @@ variantSelectionVariant = unVariantSelection
 
 selectVariantByIdx :: VariantList -> Int -> Maybe VariantSelection
 selectVariantByIdx vl n = do
-    v <- unVariantList vl `atMay` n
-    pure $ UnsafeVariantSelection v
+  v <- unVariantList vl `atMay` n
+  pure $ UnsafeVariantSelection v
 
 selectVariantByLabel :: VariantList -> RawVariantSelection -> Maybe VariantSelection
 selectVariantByLabel vl v
-    | unRawVariantSelection v `elem` (unVariantList vl) =
-        Just (UnsafeVariantSelection (unRawVariantSelection v))
-    | otherwise = Nothing
+  | unRawVariantSelection v `elem` (unVariantList vl) =
+    Just (UnsafeVariantSelection (unRawVariantSelection v))
+  | otherwise = Nothing
 
 newtype VariantList = VariantList {unVariantList :: [Variant]}
   deriving stock (Generic, Show)
@@ -97,7 +97,7 @@ mkVariantList vs
   | length vs < 2 = Nothing
   | otherwise = Just $ VariantList vs
 
-newtype RawVariantSelection = RawVariantSelection { unRawVariantSelection :: Variant }
+newtype RawVariantSelection = RawVariantSelection {unRawVariantSelection :: Variant}
   deriving stock (Generic, Show)
   deriving newtype (Ae.FromJSON, Eq, FromHttpApiData)
   deriving newtype (Ord) -- For use in a Map
