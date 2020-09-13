@@ -3,12 +3,12 @@ module Cavil.Serve.Common where
 import Cavil.Api.Common
 import Cavil.Event.Common
 import Data.Aeson ((.=))
-import qualified Data.Aeson as Ae
-import qualified Data.Aeson.Encoding as Ae.Enc
-import qualified Data.Binary.Builder as B
-import qualified Data.ByteString.Lazy as BS.L
-import qualified Data.HashMap.Strict as HM
-import qualified Database.PostgreSQL.Simple as PG
+import Data.Aeson qualified as Ae
+import Data.Aeson.Encoding qualified as Ae.Enc
+import Data.Binary.Builder qualified as B
+import Data.ByteString.Lazy qualified as BS.L
+import Data.HashMap.Strict qualified as HM
+import Database.PostgreSQL.Simple qualified as PG
 import Protolude hiding (Handler)
 import Servant
 

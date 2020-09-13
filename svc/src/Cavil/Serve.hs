@@ -1,6 +1,4 @@
-{-# LANGUAGE BlockArguments #-}
 {-# LANGUAGE CPP #-}
-{-# LANGUAGE DuplicateRecordFields #-}
 {-# LANGUAGE TemplateHaskell #-}
 {-# LANGUAGE UndecidableInstances #-}
 

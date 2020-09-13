@@ -1,8 +1,3 @@
-{-# LANGUAGE BlockArguments #-}
-{-# LANGUAGE DuplicateRecordFields #-}
-{-# LANGUAGE LambdaCase #-}
-{-# LANGUAGE TypeApplications #-}
-
 module Cavil.Serve.Decider where
 
 import Cavil.Api

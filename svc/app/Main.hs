@@ -1,17 +1,13 @@
-{-# LANGUAGE DuplicateRecordFields #-}
-{-# LANGUAGE NamedFieldPuns #-}
-{-# LANGUAGE TypeApplications #-}
-
 module Main where
 
 import Cavil.Serve
 import Cavil.Serve.Common
-import qualified Data.Default as Default
-import qualified Database.PostgreSQL.Simple as PG
+import Data.Default qualified as Default
+import Database.PostgreSQL.Simple qualified as PG
 import Network.Wai.Handler.Warp (run)
-import qualified Network.Wai.Middleware.Cors as Cors
-import qualified Network.Wai.Middleware.RequestLogger as ReqLog
-import qualified Network.Wai.Middleware.RequestLogger.JSON as ReqLog
+import Network.Wai.Middleware.Cors qualified as Cors
+import Network.Wai.Middleware.RequestLogger qualified as ReqLog
+import Network.Wai.Middleware.RequestLogger.JSON qualified as ReqLog
 import Options
 import Options.Applicative
 import Protolude hiding (option)

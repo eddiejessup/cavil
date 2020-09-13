@@ -1,20 +1,16 @@
-{-# LANGUAGE DuplicateRecordFields #-}
-{-# LANGUAGE LambdaCase #-}
-{-# LANGUAGE TypeApplications #-}
-
 module Cavil.Event.Decider where
 
 import Cavil.Api.Decider
 import Cavil.Api.Decider.Var
 import Cavil.Event.Common
 import Cavil.Hashing (nextDecisionId)
-import qualified Data.Aeson as Ae
+import Data.Aeson qualified as Ae
 import Data.Generics.Product.Typed
 import Data.Generics.Sum (AsType, injectTyped)
-import qualified Data.List as List
+import Data.List qualified as List
 import Data.Time (UTCTime)
-import qualified Database.PostgreSQL.Simple.FromField as PG
-import qualified Database.PostgreSQL.Simple.ToField as PG
+import Database.PostgreSQL.Simple.FromField qualified as PG
+import Database.PostgreSQL.Simple.ToField qualified as PG
 import Optics
 import Protolude hiding (to, (%))
 

@@ -1,17 +1,13 @@
-{-# LANGUAGE DuplicateRecordFields #-}
-{-# LANGUAGE LambdaCase #-}
-{-# LANGUAGE TypeApplications #-}
-
 module Cavil.Event.Common where
 
 import Data.Generics.Product.Typed
 import Data.Generics.Sum (AsType, injectTyped)
-import qualified Data.List as List
+import Data.List qualified as List
 import Data.Time (UTCTime)
 import Data.UUID (UUID)
-import qualified Database.PostgreSQL.Simple as PG
-import qualified Database.PostgreSQL.Simple.FromField as PG
-import qualified Database.PostgreSQL.Simple.ToField as PG
+import Database.PostgreSQL.Simple qualified as PG
+import Database.PostgreSQL.Simple.FromField qualified as PG
+import Database.PostgreSQL.Simple.ToField qualified as PG
 import Optics
 import Protolude hiding (to, (%))
 

@@ -1,7 +1,3 @@
-{-# LANGUAGE DuplicateRecordFields #-}
-{-# LANGUAGE LambdaCase #-}
-{-# LANGUAGE TypeApplications #-}
-
 module Cavil.Impl.Decider where
 
 import Cavil.Api.Decider
@@ -10,13 +6,13 @@ import Cavil.Event.Common
 import Cavil.Event.Decider
 import Data.Generics.Product.Typed
 import Data.Generics.Sum (AsType, injectTyped)
-import qualified Data.List as List
+import Data.List qualified as List
 import Data.Map.Strict (lookup, traverseWithKey)
-import qualified Data.Time as T
+import Data.Time qualified as T
 import Data.UUID (UUID)
-import qualified Data.UUID as UUID
-import qualified Data.UUID.V4 as UUID.V4
-import qualified Database.PostgreSQL.Simple as PG
+import Data.UUID qualified as UUID
+import Data.UUID.V4 qualified as UUID.V4
+import Database.PostgreSQL.Simple qualified as PG
 import Protolude hiding ((%))
 
 pickVariant :: VariantList -> FieldId -> VariantSelection

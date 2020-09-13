@@ -1,12 +1,9 @@
-{-# LANGUAGE DuplicateRecordFields #-}
-{-# LANGUAGE NamedFieldPuns #-}
-
 module Options where
 
-import qualified Data.List as List
+import Data.List qualified as List
 import Data.String (String)
-import qualified Data.Text as Tx
-import qualified Database.PostgreSQL.Simple as PG
+import Data.Text qualified as Tx
+import Database.PostgreSQL.Simple qualified as PG
 import Options.Applicative
 import Protolude hiding (option)
 import Safe (readMay)

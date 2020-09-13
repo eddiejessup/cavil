@@ -1,9 +1,7 @@
-{-# LANGUAGE DuplicateRecordFields #-}
-
 module Cavil.Api where
 
 import Cavil.Api.Decider
-import qualified Data.Aeson as Ae
+import Data.Aeson qualified as Ae
 import Protolude
 import Servant
 import Servant.API.Generic

@@ -1,7 +1,3 @@
-{-# LANGUAGE DuplicateRecordFields #-}
-{-# LANGUAGE ImportQualifiedPost #-}
-{-# LANGUAGE TypeApplications #-}
-
 module Cavil.Api.Decider where
 
 import Cavil.Api.Decider.Var

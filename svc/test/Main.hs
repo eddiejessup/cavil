@@ -1,14 +1,12 @@
-{-# LANGUAGE NumericUnderscores #-}
-
 module Main where
 
 import Cavil.Api.Decider
-import qualified Cavil.Hashing as Hashing
+import Cavil.Hashing qualified as Hashing
 import Cavil.Impl.Decider
-import qualified Data.List as List
-import qualified Data.Map.Strict as Map
-import qualified Data.Maybe as Mb
-import qualified Data.UUID as UUID
+import Data.List qualified as List
+import Data.Map.Strict qualified as Map
+import Data.Maybe qualified as Mb
+import Data.UUID qualified as UUID
 import Protolude
 import Test.Tasty
 import Test.Tasty.HUnit

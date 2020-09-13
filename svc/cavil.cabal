@@ -34,7 +34,7 @@ library
       Paths_cavil
   hs-source-dirs:
       src
-  default-extensions: ConstraintKinds DataKinds DeriveAnyClass DeriveFoldable DeriveFunctor DeriveGeneric DeriveLift DeriveTraversable DerivingStrategies EmptyCase FlexibleContexts FlexibleInstances GeneralizedNewtypeDeriving InstanceSigs LambdaCase MultiParamTypeClasses MultiWayIf NamedFieldPuns NoImplicitPrelude OverloadedStrings ScopedTypeVariables StandaloneDeriving TupleSections TypeApplications TypeFamilies TypeOperators
+  default-extensions: BlockArguments ConstraintKinds DataKinds DeriveAnyClass DeriveFoldable DeriveFunctor DeriveGeneric DeriveLift DeriveTraversable DerivingStrategies DuplicateRecordFields EmptyCase FlexibleContexts FlexibleInstances GeneralizedNewtypeDeriving InstanceSigs LambdaCase MultiParamTypeClasses MultiWayIf NamedFieldPuns NumericUnderscores NoImplicitPrelude OverloadedStrings ScopedTypeVariables StandaloneDeriving TupleSections TypeApplications TypeFamilies TypeOperators ImportQualifiedPost
   ghc-options: -Wall -Wcompat -Wincomplete-record-updates -Wincomplete-uni-patterns -Wredundant-constraints -Wno-warnings-deprecations -Wno-incomplete-patterns -Wno-incomplete-uni-patterns -Wmissing-deriving-strategies
   build-depends:
       aeson
@@ -70,7 +70,7 @@ executable app
       Paths_cavil
   hs-source-dirs:
       app
-  default-extensions: ConstraintKinds DataKinds DeriveAnyClass DeriveFoldable DeriveFunctor DeriveGeneric DeriveLift DeriveTraversable DerivingStrategies EmptyCase FlexibleContexts FlexibleInstances GeneralizedNewtypeDeriving InstanceSigs LambdaCase MultiParamTypeClasses MultiWayIf NamedFieldPuns NoImplicitPrelude OverloadedStrings ScopedTypeVariables StandaloneDeriving TupleSections TypeApplications TypeFamilies TypeOperators
+  default-extensions: BlockArguments ConstraintKinds DataKinds DeriveAnyClass DeriveFoldable DeriveFunctor DeriveGeneric DeriveLift DeriveTraversable DerivingStrategies DuplicateRecordFields EmptyCase FlexibleContexts FlexibleInstances GeneralizedNewtypeDeriving InstanceSigs LambdaCase MultiParamTypeClasses MultiWayIf NamedFieldPuns NumericUnderscores NoImplicitPrelude OverloadedStrings ScopedTypeVariables StandaloneDeriving TupleSections TypeApplications TypeFamilies TypeOperators ImportQualifiedPost
   ghc-options: -Wall -Wcompat -Wincomplete-record-updates -Wincomplete-uni-patterns -Wredundant-constraints -Wno-warnings-deprecations -Wno-incomplete-patterns -Wno-incomplete-uni-patterns -Wmissing-deriving-strategies
   build-depends:
       aeson
@@ -106,7 +106,7 @@ test-suite test
       Paths_cavil
   hs-source-dirs:
       test
-  default-extensions: ConstraintKinds DataKinds DeriveAnyClass DeriveFoldable DeriveFunctor DeriveGeneric DeriveLift DeriveTraversable DerivingStrategies EmptyCase FlexibleContexts FlexibleInstances GeneralizedNewtypeDeriving InstanceSigs LambdaCase MultiParamTypeClasses MultiWayIf NamedFieldPuns NoImplicitPrelude OverloadedStrings ScopedTypeVariables StandaloneDeriving TupleSections TypeApplications TypeFamilies TypeOperators
+  default-extensions: BlockArguments ConstraintKinds DataKinds DeriveAnyClass DeriveFoldable DeriveFunctor DeriveGeneric DeriveLift DeriveTraversable DerivingStrategies DuplicateRecordFields EmptyCase FlexibleContexts FlexibleInstances GeneralizedNewtypeDeriving InstanceSigs LambdaCase MultiParamTypeClasses MultiWayIf NamedFieldPuns NumericUnderscores NoImplicitPrelude OverloadedStrings ScopedTypeVariables StandaloneDeriving TupleSections TypeApplications TypeFamilies TypeOperators ImportQualifiedPost
   ghc-options: -Wall -Wcompat -Wincomplete-record-updates -Wincomplete-uni-patterns -Wredundant-constraints -Wno-warnings-deprecations -Wno-incomplete-patterns -Wno-incomplete-uni-patterns -Wmissing-deriving-strategies
   build-depends:
       Cabal

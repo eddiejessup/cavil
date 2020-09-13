@@ -1,5 +1,3 @@
-{-# LANGUAGE ImportQualifiedPost #-}
-
 module Cavil.Api.Decider.Var
   ( EvalVar (..),
     DecisionVar (..),

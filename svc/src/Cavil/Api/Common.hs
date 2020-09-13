@@ -1,9 +1,7 @@
-{-# LANGUAGE DuplicateRecordFields #-}
-
 module Cavil.Api.Common where
 
-import qualified Data.Aeson as Ae
-import qualified Data.HashMap.Strict as HM
+import Data.Aeson qualified as Ae
+import Data.HashMap.Strict qualified as HM
 import Protolude
 
 -- Errors.

@@ -1,15 +1,12 @@
-{-# LANGUAGE DuplicateRecordFields #-}
-{-# LANGUAGE TypeApplications #-}
-
 module Cavil.Hashing where
 
 import Cavil.Api.Decider
-import qualified Crypto.Hash.SHA256 as SHA256
-import qualified Data.Binary as B
-import qualified Data.ByteString.Lazy as BS.L
+import Crypto.Hash.SHA256 qualified as SHA256
+import Data.Binary qualified as B
+import Data.ByteString.Lazy qualified as BS.L
 import Data.Generics.Product.Typed
 import Data.UUID (UUID)
-import qualified Data.UUID as UUID
+import Data.UUID qualified as UUID
 import Protolude hiding ((%))
 
 uuidFromArbitraryByteString :: BS.L.ByteString -> BS.L.ByteString -> UUID
