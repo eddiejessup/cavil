@@ -95,32 +95,32 @@ deciderCreate _user ccReq =
     Right v ->
       pure v
 
--- deciderSummarise ::
---   (MonadIO m, MonadReader AppEnv m, MonadError ServerError m) =>
---   User ->
---   DeciderId ->
---   m DeciderSummary
--- deciderSummarise _user deciderId =
---   runExceptT (summariseDecider deciderId) >>= \case
---     Left e -> throwError $
---       clientErrorAsServantError $ case e of
---         DeciderSummaryAggregateError aggE -> mapAggregateError (Just deciderId) aggE
---     Right v ->
---       pure v
+deciderSummarise ::
+  (MonadIO m, MonadReader AppEnv m, MonadError ServerError m) =>
+  User ->
+  DeciderId ->
+  m DeciderSummary
+deciderSummarise _user deciderId =
+  runExceptT (summariseDecider deciderId) >>= \case
+    Left e -> throwError $
+      clientErrorAsServantError $ case e of
+        DeciderSummaryAggregateError aggE -> mapAggregateError (Just deciderId) aggE
+    Right v ->
+      pure v
 
--- deciderDecisionSummarise ::
---   (MonadIO m, MonadReader AppEnv m, MonadError ServerError m) =>
---   User ->
---   DeciderId ->
---   DecisionId ->
---   m VariantSelection
--- deciderDecisionSummarise _user deciderId dId =
---   runExceptT (summariseDecision deciderId dId) >>= \case
---     Left e ->
---       throwError $
---         clientErrorAsServantError $ case e of
---           DecisionSummaryAggregateError aggE -> mapAggregateError (Just deciderId) aggE
---     Right v -> pure v
+deciderDecisionSummarise ::
+  (MonadIO m, MonadReader AppEnv m, MonadError ServerError m) =>
+  User ->
+  DeciderId ->
+  DecisionId ->
+  m DecisionSummary
+deciderDecisionSummarise _user deciderId dId =
+  runExceptT (summariseDecision deciderId dId) >>= \case
+    Left e ->
+      throwError $
+        clientErrorAsServantError $ case e of
+          DecisionSummaryAggregateError aggE -> mapAggregateError (Just deciderId) aggE
+    Right v -> pure v
 
 deciderRecordDecision ::
   (MonadIO m, MonadReader AppEnv m, MonadError ServerError m) =>
@@ -155,20 +155,20 @@ deciderDecisionInvalidate _user deciderId dId invalidateReq =
           InvalidateDecisionWriteError we -> mapWriteError we
     Right () -> pure NoContent
 
--- decidersSummarise ::
---   (MonadIO m, MonadReader AppEnv m, MonadError ServerError m) =>
---   User ->
---   m [DeciderSummary]
--- decidersSummarise _user =
---   getAllDeciderIds >>= mapM (deciderSummarise _user)
+decidersSummarise ::
+  (MonadIO m, MonadReader AppEnv m, MonadError ServerError m) =>
+  User ->
+  m [DeciderSummary]
+decidersSummarise _user =
+  getAllDeciderIds >>= mapM (deciderSummarise _user)
 
 deciderRoutes :: User -> DeciderRoutes (AsServerT AppM)
 deciderRoutes u =
   DeciderRoutes
     { _deciderCreate = deciderCreate u,
-      -- _deciderSummarise = deciderSummarise u,
-      -- _deciderDecisionSummarise = deciderDecisionSummarise u,
+      _deciderSummarise = deciderSummarise u,
+      _deciderDecisionSummarise = deciderDecisionSummarise u,
       _deciderRecordDecision = deciderRecordDecision u,
-      _deciderDecisionInvalidate = deciderDecisionInvalidate u
-      -- _decidersSummarise = decidersSummarise u
+      _deciderDecisionInvalidate = deciderDecisionInvalidate u,
+      _decidersSummarise = decidersSummarise u
     }

@@ -16,11 +16,11 @@ import Servant.API.Generic
 
 data DeciderRoutes route = DeciderRoutes
   { _deciderCreate :: route :- ReqBody '[JSON] CreateDeciderRequest :> Post '[JSON] DeciderId,
-    -- _deciderSummarise :: route :- Capture "deciderId" DeciderId :> Get '[JSON] DeciderSummary,
+    _deciderSummarise :: route :- Capture "deciderId" DeciderId :> Get '[JSON] DeciderSummary,
     _deciderRecordDecision :: route :- Capture "deciderId" DeciderId :> Capture "decisionId" DecisionId :> ReqBody '[JSON] RecordDecisionRequest :> Put '[JSON] RecordDecisionResponse,
-    -- _deciderDecisionSummarise :: route :- Capture "deciderId" DeciderId :> Capture "decisionId" DecisionId :> Get '[JSON] VariantSelection,
-    _deciderDecisionInvalidate :: route :- Capture "deciderId" DeciderId :> Capture "decisionId" DecisionId :> "invalidate" :> ReqBody '[JSON] InvalidateDecisionRequest :> Post '[JSON] NoContent
-    -- _decidersSummarise :: route :- Get '[JSON] [DeciderSummary]
+    _deciderDecisionSummarise :: route :- Capture "deciderId" DeciderId :> Capture "decisionId" DecisionId :> Get '[JSON] DecisionSummary,
+    _deciderDecisionInvalidate :: route :- Capture "deciderId" DeciderId :> Capture "decisionId" DecisionId :> "invalidate" :> ReqBody '[JSON] InvalidateDecisionRequest :> Post '[JSON] NoContent,
+    _decidersSummarise :: route :- Get '[JSON] [DeciderSummary]
   }
   deriving stock (Generic)
 
@@ -86,12 +86,14 @@ data DeciderSummary = DeciderSummary
 
 data DecisionSummary = DecisionSummary
   { id :: DecisionId,
-    decisionTime :: T.UTCTime,
-    variant :: VariantSelection,
+    creationTime :: T.UTCTime,
+    body :: DecisionBody,
     isValid :: Bool,
     invalidationReason :: Maybe Text
   }
   deriving stock (Generic)
   deriving anyclass (Ae.ToJSON)
+
+type DecisionBody = Map FieldLabel (EvalVar VariantSelection)
 
 -- /Response interfaces.

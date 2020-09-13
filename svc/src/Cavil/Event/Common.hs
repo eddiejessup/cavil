@@ -13,11 +13,12 @@ import qualified Database.PostgreSQL.Simple.FromField as PG
 import qualified Database.PostgreSQL.Simple.ToField as PG
 import Optics
 import Protolude hiding (to, (%))
+import Data.Time (UTCTime)
 
-foldAllEventsIntoAggregate :: (MonadError e m, AsType (AggregateErrorWithState (AggErr evt)) e, CavilEvent evt) => AggregateState -> [evt] -> m (Maybe (EvtAggregate evt))
+foldAllEventsIntoAggregate :: (MonadError e m, AsType (AggregateErrorWithState (AggErr evt)) e, CavilEvent evt) => AggregateState -> [(evt, UTCTime)] -> m (Maybe (EvtAggregate evt))
 foldAllEventsIntoAggregate aggState = foldIncrementalEventsIntoAggregate aggState Nothing
 
-foldIncrementalEventsIntoAggregate :: (MonadError e m, AsType (AggregateErrorWithState (AggErr evt)) e, CavilEvent evt) => AggregateState -> Maybe (EvtAggregate evt) -> [evt] -> m (Maybe (EvtAggregate evt))
+foldIncrementalEventsIntoAggregate :: (MonadError e m, AsType (AggregateErrorWithState (AggErr evt)) e, CavilEvent evt) => AggregateState -> Maybe (EvtAggregate evt) -> [(evt, UTCTime)] -> m (Maybe (EvtAggregate evt))
 foldIncrementalEventsIntoAggregate aggState = foldM (foldEvt aggState)
 
 class CavilEvent evt where
@@ -27,7 +28,7 @@ class CavilEvent evt where
 
   eventType :: Proxy evt -> Text
 
-  foldEvt :: (MonadError e m, AsType (AggregateErrorWithState (AggErr evt)) e) => AggregateState -> Maybe (EvtAggregate evt) -> evt -> m (Maybe (EvtAggregate evt))
+  foldEvt :: (MonadError e m, AsType (AggregateErrorWithState (AggErr evt)) e) => AggregateState -> Maybe (EvtAggregate evt) -> (evt, UTCTime) -> m (Maybe (EvtAggregate evt))
 
 getAggregate ::
   forall e r m evt.
@@ -40,11 +41,12 @@ getAggregate aggState pxy = do
   pgConn <- gview (typed @PG.Connection)
   evts <-
     liftIO $
-      PG.query @_ @(PG.Only evt)
+      PG.query @_ @(evt, UTCTime)
         pgConn
         "\
         \ SELECT\
-        \     data\
+        \     data,\
+        \     created\
         \ FROM\
         \    event\
         \ WHERE\
@@ -54,7 +56,7 @@ getAggregate aggState pxy = do
         \    sequence_nr ASC\
         \"
         (eventType pxy, aggId)
-  agg <- foldAllEventsIntoAggregate aggState (PG.fromOnly <$> evts)
+  agg <- foldAllEventsIntoAggregate aggState evts
   pure (agg, AggregateValidatedToken aggId)
 
 getAllAggIds ::
@@ -85,11 +87,13 @@ insertEventsValidated ::
   (MonadIO m, MonadError e m, AsType (AggregateErrorWithState (AggErr evt)) e, AsType WriteError e, MonadReader r m, HasType PG.Connection r, CavilEvent evt, PG.ToField evt) =>
   AggregateValidatedToken ->
   Maybe (EvtAggregate evt) ->
+  UTCTime ->
   [evt] ->
   m (Maybe (EvtAggregate evt))
-insertEventsValidated valAggId curAgg evts = do
+insertEventsValidated valAggId curAgg createTime evts = do
   -- Check inserting event should go okay.
-  newAgg <- foldIncrementalEventsIntoAggregate (AggregateDuringRequest valAggId) curAgg evts
+  let evtsWithTime = (,createTime) <$> evts
+  newAgg <- foldIncrementalEventsIntoAggregate (AggregateDuringRequest valAggId) curAgg evtsWithTime
   insertEvents valAggId evts
   pure newAgg
 

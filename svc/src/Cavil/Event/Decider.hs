@@ -16,12 +16,13 @@ import qualified Database.PostgreSQL.Simple.FromField as PG
 import qualified Database.PostgreSQL.Simple.ToField as PG
 import Optics
 import Protolude hiding (to, (%))
+import Data.Time (UTCTime)
 
 -- Event.
 
 data DeciderEvent
   = DeciderCreated DeciderCreatedEvent
-  | DecisionMade (DecisionMadeEvent)
+  | DecisionMade DecisionMadeEvent
   | DecisionInvalidated DecisionInvalidatedEvent
   deriving stock (Generic)
 
@@ -52,9 +53,9 @@ data DecisionMadeEvent = DecisionMadeEvent
   }
   deriving stock (Generic)
 
-deriving anyclass instance Ae.ToJSON (DecisionMadeEvent)
+deriving anyclass instance Ae.ToJSON DecisionMadeEvent
 
-deriving anyclass instance Ae.FromJSON (DecisionMadeEvent)
+deriving anyclass instance Ae.FromJSON DecisionMadeEvent
 
 data DecisionInvalidatedEvent = DecisionInvalidatedEvent
   { decisionId :: DecisionId,
@@ -82,7 +83,7 @@ initialDeciderAggregate ev =
       decisions = []
     }
 
-type DecisionsMap = [(DecisionId, DecisionAggregate)]
+type DecisionsMap = [(DecisionId, (UTCTime, DecisionAggregate))]
 
 data DecisionAggregate = DecisionAggregate
   { decision :: InternalDecision,
@@ -117,8 +118,8 @@ nextDecisionIdFromAgg deciderId agg =
     Nothing -> Left deciderId
     Just lastId -> Right lastId
 
-foldDeciderEvent :: (MonadError e m, AsType (AggregateErrorWithState DeciderAggregateError) e) => AggregateState -> Maybe DeciderAggregate -> DeciderEvent -> m (Maybe DeciderAggregate)
-foldDeciderEvent aggState mayAgg = \case
+foldDeciderEvent :: (MonadError e m, AsType (AggregateErrorWithState DeciderAggregateError) e) => AggregateState -> Maybe DeciderAggregate -> (DeciderEvent, UTCTime) -> m (Maybe DeciderAggregate)
+foldDeciderEvent aggState mayAgg (evt, createdTime) = case evt of
   DeciderCreated ccEvt -> case mayAgg of
     Nothing ->
       pure $ Just $ initialDeciderAggregate ccEvt
@@ -127,13 +128,13 @@ foldDeciderEvent aggState mayAgg = \case
   DecisionMade ev -> do
     agg <- note (aggError NoSuchDecider) mayAgg
     if nextDecisionIdFromAgg deciderId agg == ev ^. typed @DecisionId
-      then pure $ Just $ agg & typed @DecisionsMap %~ (<> [(getTyped @DecisionId ev, initialDecisionAggregate ev)])
+      then pure $ Just $ agg & typed @DecisionsMap %~ (<> [(getTyped @DecisionId ev, (createdTime, initialDecisionAggregate ev))])
       else throwError $ aggError IncoherentDecisionId
   DecisionInvalidated ev -> do
     let dId = getTyped @DecisionId ev
     let reason = getField @"reason" ev
     agg <- note (aggError NoSuchDecider) mayAgg
-    decisionAgg <- note (aggError NoSuchDecision) (List.lookup dId (getTyped @DecisionsMap agg))
+    (_decisionCreatedTime, decisionAgg) <- note (aggError NoSuchDecision) (List.lookup dId (getTyped @DecisionsMap agg))
     case getTyped @DecisionValidity decisionAgg of
       DecisionIsNotValid _ ->
         throwError $ aggError DecisionAlreadyInvalidated
@@ -148,6 +149,7 @@ foldDeciderEvent aggState mayAgg = \case
               & typed @DecisionsMap
               % traversed
               % unsafeFiltered (\(inId, _) -> inId == dId)
+              % _2
               % _2
               % typed @DecisionValidity
               .~ DecisionIsNotValid reason

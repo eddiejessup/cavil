@@ -65,52 +65,55 @@ createDecider ::
   DeciderSchema ->
   m DeciderId
 createDecider deciderLabel schema = do
+  evTime <- liftIO T.getCurrentTime
   deciderId <- DeciderId <$> liftIO UUID.V4.nextRandom
   (agg, valAggId) <- fetchInitialDeciderAggById deciderId
   internalSchema <- parseDeciderSchema schema
   let newEvts = [DeciderCreated (DeciderCreatedEvent deciderLabel internalSchema)]
-  void $ insertEventsValidated valAggId agg newEvts
+  void $ insertEventsValidated valAggId agg evTime newEvts
   pure deciderId
 
--- summariseDecider ::
---   (MonadIO m, MonadError e m, AsType (AggregateErrorWithState DeciderAggregateError) e, MonadReader r m, HasType PG.Connection r) =>
---   DeciderId ->
---   m DeciderSummary
--- summariseDecider deciderId = do
---   (agg, _) <- fetchCreatedDeciderAggById deciderId
+summariseDecider ::
+  (MonadIO m, MonadError e m, AsType (AggregateErrorWithState DeciderAggregateError) e, MonadReader r m, HasType PG.Connection r) =>
+  DeciderId ->
+  m DeciderSummary
+summariseDecider deciderId = do
+  (agg, _) <- fetchCreatedDeciderAggById deciderId
 
---   let decisions =
---         toDecisionSummary
---           <$> sortBy cmpDecisionTime (getField @"decisions" agg)
+  let decisions =
+        sortBy cmpDecisionCreationTime (getField @"decisions" agg)
+        <&> \(id, (createTime, decAgg)) -> toDecisionSummary id createTime decAgg
 
---   pure $
---     DeciderSummary
---       { id = deciderId,
---         nextDecisionId = nextDecisionIdFromAgg deciderId agg,
---         label = getTyped @DeciderLabel agg,
---         schema = getTyped @DeciderSchema agg,
---         decisions
---       }
---   where
---     cmpDecisionTime ::
---       (DecisionId, DecisionAggregate) ->
---       (DecisionId, DecisionAggregate) ->
---       Ordering
---     cmpDecisionTime (_, a) (_, b) = getField @"decisionTime" a `compare` getField @"decisionTime" b
+  pure $
+    DeciderSummary
+      { id = deciderId,
+        nextDecisionId = nextDecisionIdFromAgg deciderId agg,
+        label = getTyped @DeciderLabel agg,
+        schema = asPublicSchema (getTyped @InternalDeciderSchema agg),
+        decisions
+      }
+  where
+    cmpDecisionCreationTime ::
+      (DecisionId, (T.UTCTime, DecisionAggregate)) ->
+      (DecisionId, (T.UTCTime, DecisionAggregate)) ->
+      Ordering
+    cmpDecisionCreationTime (_, (tA, _)) (_, (tB, _)) = tA `compare` tB
 
---     toDecisionSummary :: (DecisionId, DecisionAggregate) -> DecisionSummary
---     toDecisionSummary (id, decAgg) =
---       DecisionSummary
---         { id,
---           decisionTime = getField @"decisionTime" decAgg,
---           variant = getTyped @Variant decAgg,
---           isValid = case getTyped @DecisionValidity decAgg of
---             DecisionIsValid -> True
---             DecisionIsNotValid _ -> False,
---           invalidationReason = case getTyped @DecisionValidity decAgg of
---             DecisionIsValid -> Nothing
---             DecisionIsNotValid reason -> Just reason
---         }
+    asPublicSchema = fmap fst
+
+toDecisionSummary :: DecisionId -> T.UTCTime -> DecisionAggregate -> DecisionSummary
+toDecisionSummary id decCreateTime decAgg =
+  DecisionSummary
+    { id,
+      creationTime = decCreateTime,
+      body = getField @"decision" decAgg,
+      isValid = case getTyped @DecisionValidity decAgg of
+        DecisionIsValid -> True
+        DecisionIsNotValid _ -> False,
+      invalidationReason = case getTyped @DecisionValidity decAgg of
+        DecisionIsValid -> Nothing
+        DecisionIsNotValid reason -> Just reason
+    }
 
 recordDecisionRandom ::
   ( MonadIO m,
@@ -144,9 +147,9 @@ recordDecisionRandom deciderId reqDecisionId reqBody = do
               Just a ->
                 pure a
       let newEvts = [DecisionMade (DecisionMadeEvent reqDecisionId decision)]
-      void $ insertEventsValidated valAggId (Just agg) newEvts
+      void $ insertEventsValidated valAggId (Just agg) nowTime newEvts
       pure decision
-    Just existingDecAgg ->
+    Just (_existingDecCreatedTime, existingDecAgg) ->
       pure $ getTyped @InternalDecision existingDecAgg
 
 summariseDecision ::
@@ -158,14 +161,14 @@ summariseDecision ::
   ) =>
   DeciderId ->
   DecisionId ->
-  m InternalDecision
+  m DecisionSummary
 summariseDecision deciderId reqDecisionId = do
   (agg, valAggId) <- fetchCreatedDeciderAggById deciderId
   case List.lookup reqDecisionId (getField @"decisions" agg) of
     Nothing ->
       throwError $ injectTyped $ AggregateErrorWithState (AggregateDuringRequest valAggId) NoSuchDecision
-    Just existingDecAgg ->
-      pure $ getTyped @InternalDecision existingDecAgg
+    Just (decCreateTime, decAgg) ->
+      pure $ toDecisionSummary reqDecisionId decCreateTime decAgg
 
 invalidateDecision ::
   ( MonadIO m,
@@ -182,7 +185,8 @@ invalidateDecision ::
 invalidateDecision deciderId reqDecisionId invalidateReason = do
   (agg, valAggId) <- fetchCreatedDeciderAggById deciderId
   let newEvts = [DecisionInvalidated (DecisionInvalidatedEvent reqDecisionId invalidateReason)]
-  void $ insertEventsValidated valAggId (Just agg) newEvts
+  evTime <- liftIO T.getCurrentTime
+  void $ insertEventsValidated valAggId (Just agg) evTime newEvts
 
 getAllDeciderIds ::
   (MonadIO m, MonadReader r m, HasType PG.Connection r) =>
