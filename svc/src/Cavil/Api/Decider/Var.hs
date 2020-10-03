@@ -3,12 +3,13 @@ module Cavil.Api.Decider.Var
     DecisionVar (..),
     Variant (..),
     RawVariantSelection (..),
-    VariantSelection,
+    VariantSelection (..),
     VariantList (..),
     selectVariantByIdx,
     selectVariantByLabel,
     variantSelectionVariant,
     mkVariantList,
+    mkSimpleVariantList,
     collectMaybeEvalVar,
   )
 where
@@ -16,6 +17,7 @@ where
 import Control.Monad.Fail (MonadFail (fail))
 import Data.Aeson ((.:))
 import Data.Aeson qualified as Ae
+import Data.Containers.ListUtils (nubOrd)
 import Data.Time.Clock qualified as T
 import Protolude
 import Servant.API (FromHttpApiData)
@@ -54,7 +56,7 @@ instance Ae.FromJSON a => Ae.FromJSON (EvalVar a) where
         <$> obj .: "v"
         <*> obj .: "decisionTime"
 
-newtype Variant = UnsafeVariant {unVariant :: Text}
+newtype Variant = Variant {unVariant :: Text}
   deriving stock (Generic, Show)
   deriving newtype (Eq, Ord, Ae.ToJSON, Ae.FromJSON, FromHttpApiData)
 
@@ -93,7 +95,12 @@ instance Ae.FromJSON VariantList where
 mkVariantList :: [Variant] -> Maybe VariantList
 mkVariantList vs
   | length vs < 2 = Nothing
+  | length (nubOrd vs) /= length vs = Nothing
   | otherwise = Just $ VariantList vs
+
+mkSimpleVariantList :: Int -> Maybe VariantList
+mkSimpleVariantList nrVars
+  = mkVariantList $ Variant . show <$> (take nrVars [0..] :: [Int])
 
 newtype RawVariantSelection = RawVariantSelection {unRawVariantSelection :: Variant}
   deriving stock (Generic, Show)

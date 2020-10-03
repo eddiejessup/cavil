@@ -3,7 +3,7 @@ module Cavil.Event.Decider where
 import Cavil.Api.Decider
 import Cavil.Api.Decider.Var
 import Cavil.Event.Common
-import Cavil.Hashing (nextDecisionId)
+import Cavil.Hashing (nextDecisionIdInChain)
 import Data.Aeson qualified as Ae
 import Data.Generics.Product.Typed
 import Data.Generics.Sum (AsType, injectTyped)
@@ -110,7 +110,7 @@ lastDecisionId agg =
 
 nextDecisionIdFromAgg :: DeciderId -> DeciderAggregate -> DecisionId
 nextDecisionIdFromAgg deciderId agg =
-  Cavil.Hashing.nextDecisionId $ case lastDecisionId agg of
+  Cavil.Hashing.nextDecisionIdInChain $ case lastDecisionId agg of
     Nothing -> Left deciderId
     Just lastId -> Right lastId
 
