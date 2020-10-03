@@ -21,21 +21,21 @@ library
   exposed-modules:
       Cavil.Api
       Cavil.Api.Common
-      Cavil.Api.Decider
-      Cavil.Api.Decider.Var
+      Cavil.Api.Ledger
+      Cavil.Api.Ledger.Var
       Cavil.Event.Common
-      Cavil.Event.Decider
+      Cavil.Event.Ledger
       Cavil.Hashing
-      Cavil.Impl.Decider
+      Cavil.Impl.Ledger
       Cavil.Serve
       Cavil.Serve.Common
-      Cavil.Serve.Decider
+      Cavil.Serve.Ledger
   other-modules:
       Paths_cavil
   hs-source-dirs:
       src
   default-extensions: BlockArguments ConstraintKinds DataKinds DeriveAnyClass DeriveFoldable DeriveFunctor DeriveGeneric DeriveLift DeriveTraversable DerivingStrategies DuplicateRecordFields EmptyCase FlexibleContexts FlexibleInstances GeneralizedNewtypeDeriving ImportQualifiedPost InstanceSigs LambdaCase MultiParamTypeClasses MultiWayIf NamedFieldPuns NoImplicitPrelude NumericUnderscores OverloadedStrings ScopedTypeVariables StandaloneDeriving TupleSections TypeApplications TypeFamilies TypeOperators
-  ghc-options: -Wall -Wcompat -Wincomplete-record-updates -Wincomplete-uni-patterns -Wredundant-constraints -Wno-warnings-deprecations -Wno-incomplete-patterns -Wno-incomplete-uni-patterns -Wmissing-deriving-strategies
+  ghc-options: -Wall -Wcompat -Wincomplete-record-updates -Wincomplete-uni-patterns -Wredundant-constraints -Wno-warnings-deprecations -Wno-incomplete-patterns -Wno-incomplete-uni-patterns -Wmissing-deriving-strategies -haddock
   build-depends:
       aeson
     , base
@@ -71,7 +71,7 @@ executable app
   hs-source-dirs:
       app
   default-extensions: BlockArguments ConstraintKinds DataKinds DeriveAnyClass DeriveFoldable DeriveFunctor DeriveGeneric DeriveLift DeriveTraversable DerivingStrategies DuplicateRecordFields EmptyCase FlexibleContexts FlexibleInstances GeneralizedNewtypeDeriving ImportQualifiedPost InstanceSigs LambdaCase MultiParamTypeClasses MultiWayIf NamedFieldPuns NoImplicitPrelude NumericUnderscores OverloadedStrings ScopedTypeVariables StandaloneDeriving TupleSections TypeApplications TypeFamilies TypeOperators
-  ghc-options: -Wall -Wcompat -Wincomplete-record-updates -Wincomplete-uni-patterns -Wredundant-constraints -Wno-warnings-deprecations -Wno-incomplete-patterns -Wno-incomplete-uni-patterns -Wmissing-deriving-strategies
+  ghc-options: -Wall -Wcompat -Wincomplete-record-updates -Wincomplete-uni-patterns -Wredundant-constraints -Wno-warnings-deprecations -Wno-incomplete-patterns -Wno-incomplete-uni-patterns -Wmissing-deriving-strategies -haddock
   build-depends:
       aeson
     , base
@@ -107,7 +107,7 @@ test-suite test
   hs-source-dirs:
       test
   default-extensions: BlockArguments ConstraintKinds DataKinds DeriveAnyClass DeriveFoldable DeriveFunctor DeriveGeneric DeriveLift DeriveTraversable DerivingStrategies DuplicateRecordFields EmptyCase FlexibleContexts FlexibleInstances GeneralizedNewtypeDeriving ImportQualifiedPost InstanceSigs LambdaCase MultiParamTypeClasses MultiWayIf NamedFieldPuns NoImplicitPrelude NumericUnderscores OverloadedStrings ScopedTypeVariables StandaloneDeriving TupleSections TypeApplications TypeFamilies TypeOperators
-  ghc-options: -Wall -Wcompat -Wincomplete-record-updates -Wincomplete-uni-patterns -Wredundant-constraints -Wno-warnings-deprecations -Wno-incomplete-patterns -Wno-incomplete-uni-patterns -Wmissing-deriving-strategies
+  ghc-options: -Wall -Wcompat -Wincomplete-record-updates -Wincomplete-uni-patterns -Wredundant-constraints -Wno-warnings-deprecations -Wno-incomplete-patterns -Wno-incomplete-uni-patterns -Wmissing-deriving-strategies -haddock
   build-depends:
       Cabal
     , aeson

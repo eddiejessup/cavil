@@ -1,6 +1,6 @@
 module Cavil.Hashing where
 
-import Cavil.Api.Decider
+import Cavil.Api.Ledger
 import Crypto.Hash.SHA256 qualified as SHA256
 import Data.Binary qualified as B
 import Data.ByteString.Lazy qualified as BS.L
@@ -19,15 +19,15 @@ nextUUIDInChain salt a =
   uuidFromArbitraryByteString salt $ UUID.toByteString a
 
 nextIdInChain :: (HasType UUID a, HasType UUID b, AsType UUID b) => BS.L.ByteString -> Either a b -> b
-nextIdInChain salt decerOrLastDecId =
-  injectTyped $ nextUUIDInChain salt $ case decerOrLastDecId of
-    Left decerId ->
-      getTyped @UUID decerId
+nextIdInChain salt initOrLastId =
+  injectTyped $ nextUUIDInChain salt $ case initOrLastId of
+    Left ledgerId ->
+      getTyped @UUID ledgerId
     Right lastId ->
       getTyped @UUID lastId
 
-nextDecisionIdInChain :: Either DeciderId DecisionId -> DecisionId
-nextDecisionIdInChain = nextIdInChain "OLQC1Q786FGq"
+nextEntryIdInChain :: Either LedgerId EntryId -> EntryId
+nextEntryIdInChain = nextIdInChain "OLQC1Q786FGq"
 
-nextFieldIdInChain :: Either DecisionId FieldId -> FieldId
+nextFieldIdInChain :: Either EntryId FieldId -> FieldId
 nextFieldIdInChain = nextIdInChain "nYTAyHh7LZA0"

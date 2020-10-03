@@ -1,7 +1,5 @@
-module Cavil.Api.Decider.Var
-  ( EvalVar (..),
-    DecisionVar (..),
-    Variant (..),
+module Cavil.Api.Ledger.Var
+  ( Variant (..),
     RawVariantSelection (..),
     VariantSelection (..),
     VariantList (..),
@@ -10,51 +8,15 @@ module Cavil.Api.Decider.Var
     variantSelectionVariant,
     mkVariantList,
     mkSimpleVariantList,
-    collectMaybeEvalVar,
   )
 where
 
 import Control.Monad.Fail (MonadFail (fail))
-import Data.Aeson ((.:))
 import Data.Aeson qualified as Ae
 import Data.Containers.ListUtils (nubOrd)
-import Data.Time.Clock qualified as T
 import Protolude
 import Servant.API (FromHttpApiData)
 
-data DecisionVar a
-  = RandomDecisionVar
-  | ManualDecisionVar (EvalVar a)
-  deriving stock (Generic)
-
-instance Ae.FromJSON a => Ae.FromJSON (DecisionVar a) where
-  parseJSON = \case
-    Ae.Null -> pure RandomDecisionVar
-    v -> ManualDecisionVar <$> Ae.parseJSON v
-
-data EvalVar a = EvalVar
-  { v :: a,
-    decisionTime :: T.UTCTime
-  }
-  deriving stock (Generic, Functor)
-  deriving anyclass (Ae.ToJSON)
-
--- Mimicks API of 'distributive', but not worth adding it as a dependency.
-distributeMaybeEvalVar :: EvalVar (Maybe a) -> Maybe (EvalVar a)
-distributeMaybeEvalVar EvalVar {v = Nothing} = Nothing
-distributeMaybeEvalVar EvalVar {v = Just a, decisionTime} = Just EvalVar {v = a, decisionTime}
-
-collectMaybeEvalVar :: (a -> Maybe b) -> EvalVar a -> Maybe (EvalVar b)
-collectMaybeEvalVar f = distributeMaybeEvalVar . fmap f
-
--- /Mimicks API of 'distributive'
-
-instance Ae.FromJSON a => Ae.FromJSON (EvalVar a) where
-  parseJSON =
-    Ae.withObject "EvalVar" $ \obj ->
-      EvalVar
-        <$> obj .: "v"
-        <*> obj .: "decisionTime"
 
 newtype Variant = Variant {unVariant :: Text}
   deriving stock (Generic, Show)
@@ -75,7 +37,7 @@ selectVariantByIdx vl n = do
 
 selectVariantByLabel :: VariantList -> RawVariantSelection -> Maybe VariantSelection
 selectVariantByLabel vl v
-  | unRawVariantSelection v `elem` (unVariantList vl) =
+  | unRawVariantSelection v `elem` unVariantList vl =
     Just (UnsafeVariantSelection (unRawVariantSelection v))
   | otherwise = Nothing
 

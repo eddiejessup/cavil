@@ -4,7 +4,7 @@ CREATE DATABASE cavil;
 
 \connect cavil
 
-CREATE TYPE event_type AS ENUM ('decider', 'ledger');
+CREATE TYPE event_type AS ENUM ('ledger');
 
 CREATE TABLE event (
     sequence_nr bigserial,

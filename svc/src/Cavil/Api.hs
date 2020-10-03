@@ -1,6 +1,6 @@
 module Cavil.Api where
 
-import Cavil.Api.Decider
+import Cavil.Api.Ledger
 import Data.Aeson qualified as Ae
 import Protolude
 import Servant
@@ -13,7 +13,7 @@ type AuthRealm = "Cavil"
 type AuthPrefix = BasicAuth AuthRealm User
 
 data SiteRoutes route = SiteRoutes
-  { _decider :: route :- AuthPrefix :> "decider" :> ToServant DeciderRoutes AsApi,
+  { _ledger :: route :- AuthPrefix :> "ledger" :> ToServant LedgerRoutes AsApi,
     _version :: route :- "version" :> Get '[JSON] Version
   }
   deriving stock (Generic)
