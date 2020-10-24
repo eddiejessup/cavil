@@ -4,10 +4,15 @@ import Cavil.Api.Ledger
 import Cavil.Api.Ledger.Var
 import Cavil.Event.Common
 import Cavil.Event.Ledger
+import Cavil.Hashing
+import Crypto.Hash.SHA256 qualified as SHA256
+import Data.Binary qualified as B
+import Data.ByteString.Lazy qualified as BS.L
 import Data.Generics.Product.Typed
 import Data.Generics.Sum (AsType, injectTyped)
 import Data.List qualified as List
 import Data.Map.Strict (lookup, traverseWithKey)
+import Data.Map.Strict qualified as Map
 import Data.Time qualified as T
 import Data.UUID (UUID)
 import Data.UUID qualified as UUID
@@ -15,14 +20,31 @@ import Data.UUID.V4 qualified as UUID.V4
 import Database.PostgreSQL.Simple qualified as PG
 import Protolude hiding ((%))
 
-pickVariant :: VariantList -> FieldId -> VariantSelection
-pickVariant variants entryId =
-  let (w1, w2, w3, w4) = UUID.toWords $ getTyped @UUID entryId
-      nonModuloInt = abs $ sum $ fromIntegral @Word32 @Int <$> [w1, w2, w3, w4]
+pickVariant :: VariantList -> EntryId -> FieldId -> VariantSelection
+pickVariant variants entryId fieldId =
+  let bs1 = UUID.toByteString $ getTyped @UUID entryId
+      bs2 = UUID.toByteString $ getTyped @UUID fieldId
+      nonModuloInt = B.decode @Int $ BS.L.fromStrict $ SHA256.hashlazy (bs1 <> bs2 <> salt)
       moduloInt = nonModuloInt `mod` length (getTyped @[Variant] variants)
    in case selectVariantByIdx variants moduloInt of
         Nothing -> panic "impossible"
         Just v -> v
+  where
+    salt = "Xpkl1YXi2i4k"
+
+pickInt :: IntSchema -> EntryId -> FieldId -> BoundedInt
+pickInt intSchema@IntSchema {intMin, intMax} entryId fieldId =
+  let bs1 = UUID.toByteString $ getTyped @UUID entryId
+      bs2 = UUID.toByteString $ getTyped @UUID fieldId
+      nonModuloInt = B.decode @Int $ BS.L.fromStrict $ SHA256.hashlazy (bs1 <> bs2 <> salt)
+
+      intSize = intMax - intMin
+      intBase = nonModuloInt `mod` intSize
+   in case mkBoundedInt intSchema (intMin + intBase) of
+        Nothing -> panic "impossible"
+        Just v -> v
+  where
+    salt = "Ofi5kaJxWS9N"
 
 fetchInitialLedgerAggById ::
   (MonadIO m, MonadError e m, AsType (AggregateErrorWithState LedgerAggregateError) e, MonadReader r m, HasType PG.Connection r) =>
@@ -42,12 +64,12 @@ fetchCreatedLedgerAggById ledgerId =
     (Just agg, valAggId) ->
       pure (agg, valAggId)
 
-parseLedgerSchema :: MonadIO m => LedgerSchema -> m InternalLedgerSchema
-parseLedgerSchema = mapM withFieldId
-  where
-    withFieldId variants = do
-      fieldId <- FieldId <$> liftIO UUID.V4.nextRandom
-      pure (variants, fieldId)
+parseLedgerSchema :: LedgerId -> PublicLedgerSchema -> (FieldLabelIdMap, InternalLedgerSchema)
+parseLedgerSchema lId labToF =
+  let fIdsAndPairs = zip (idChainFromInit lId) (Map.toList labToF)
+      labToId = fIdsAndPairs <&> \(fId, (lab, _sc)) -> (lab, fId)
+      idToSc = fIdsAndPairs <&> \(fId, (_lab, sc)) -> (fId, sc)
+   in (Map.fromList labToId, Map.fromList idToSc)
 
 createLedger ::
   ( MonadIO m,
@@ -58,14 +80,14 @@ createLedger ::
     HasType PG.Connection r
   ) =>
   LedgerLabel ->
-  LedgerSchema ->
+  PublicLedgerSchema ->
   m LedgerId
 createLedger ledgerLabel schema = do
   evTime <- liftIO T.getCurrentTime
   ledgerId <- LedgerId <$> liftIO UUID.V4.nextRandom
   (agg, valAggId) <- fetchInitialLedgerAggById ledgerId
-  internalSchema <- parseLedgerSchema schema
-  let newEvts = [LedgerCreated (LedgerCreatedEvent ledgerLabel internalSchema)]
+  let (labToId, idToFSc) = parseLedgerSchema ledgerId schema
+  let newEvts = [LedgerCreated (LedgerCreatedEvent ledgerLabel idToFSc labToId)]
   void $ insertEventsValidated valAggId agg evTime newEvts
   pure ledgerId
 
@@ -75,17 +97,16 @@ summariseLedger ::
   m LedgerSummary
 summariseLedger ledgerId = do
   (agg, _) <- fetchCreatedLedgerAggById ledgerId
-
+  let labToId = getTyped @FieldLabelIdMap agg
   let entries =
         sortBy cmpEntryCreationTime (getField @"entries" agg)
-          <&> \(id, (createTime, entryAgg)) -> toEntrySummary id createTime entryAgg
-
+          <&> \(id, (createTime, entryAgg)) -> toEntrySummary labToId id createTime entryAgg
   pure $
     LedgerSummary
       { id = ledgerId,
         nextEntryId = nextEntryIdFromAgg ledgerId agg,
         label = getTyped @LedgerLabel agg,
-        schema = asPublicSchema (getTyped @InternalLedgerSchema agg),
+        schema = aggPublicSchema agg,
         entries
       }
   where
@@ -95,14 +116,12 @@ summariseLedger ledgerId = do
       Ordering
     cmpEntryCreationTime (_, (tA, _)) (_, (tB, _)) = tA `compare` tB
 
-    asPublicSchema = fmap fst
-
-toEntrySummary :: EntryId -> T.UTCTime -> EntryAggregate -> EntrySummary
-toEntrySummary id entryCreateTime entryAgg =
+toEntrySummary :: FieldLabelIdMap -> EntryId -> T.UTCTime -> EntryAggregate -> EntrySummary
+toEntrySummary labToId id entryCreateTime entryAgg =
   EntrySummary
     { id,
       creationTime = entryCreateTime,
-      body = getField @"entry" entryAgg,
+      body = makePublicEntry labToId (getField @"entry" entryAgg),
       isValid = case getTyped @EntryValidity entryAgg of
         EntryIsValid -> True
         EntryIsNotValid _ -> False,
@@ -111,7 +130,7 @@ toEntrySummary id entryCreateTime entryAgg =
         EntryIsNotValid reason -> Just reason
     }
 
-recordEntryRandom ::
+recordEntry ::
   ( MonadIO m,
     MonadError e m,
     AsType (AggregateErrorWithState LedgerAggregateError) e,
@@ -123,30 +142,51 @@ recordEntryRandom ::
   EntryId ->
   RecordEntryRequest ->
   m RecordEntryResponse
-recordEntryRandom ledgerId reqEntryId reqBody = do
+recordEntry ledgerId reqEntryId reqBody = do
   (agg, valAggId) <- fetchCreatedLedgerAggById ledgerId
-  case List.lookup reqEntryId (getField @"entries" agg) of
-    Nothing -> do
-      nowTime <- liftIO T.getCurrentTime
-      let schema = getTyped @InternalLedgerSchema agg
-      entry <- flip traverseWithKey reqBody $ \fieldLabel fieldValSpec -> do
-        (variants, fieldId) <- case lookup fieldLabel schema of
-          Nothing -> throwError $ injectTyped $ AggregateErrorWithState (AggregateDuringRequest valAggId) (undefined :: LedgerAggregateError)
-          Just v -> pure v
-        case fieldValSpec of
-          RandomFieldValSpec ->
-            pure FieldVal {v = pickVariant variants fieldId, entryTime = nowTime}
-          ManualFieldValSpec ev ->
-            case collectMaybeFieldVal (selectVariantByLabel variants) ev of
+  nowTime <- liftIO T.getCurrentTime
+  let ledgerSchema = getTyped @InternalLedgerSchema agg
+  let labToId = getTyped @FieldLabelIdMap agg
+  fLabToIdAndVal <- flip traverseWithKey reqBody $ \fieldLabel fieldValSpec -> do
+    fieldId <- case lookup fieldLabel labToId of
+      Nothing -> throwError $ injectTyped $ AggregateErrorWithState (AggregateDuringRequest valAggId) (undefined :: LedgerAggregateError)
+      Just v -> pure v
+
+    fieldSchema <- case lookup fieldId ledgerSchema of
+      Nothing -> throwError $ injectTyped $ AggregateErrorWithState (AggregateDuringRequest valAggId) (undefined :: LedgerAggregateError)
+      Just v -> pure v
+
+    fieldVal <- case fieldValSpec of
+      RandomFieldValSpec -> do
+        let v = case fieldSchema of
+              EnumFieldSchema varList ->
+                EnumBody (pickVariant varList reqEntryId fieldId)
+              IntFieldSchema intSchema -> do
+                IntBody (pickInt intSchema reqEntryId fieldId)
+        pure FieldVal {v, entryTime = nowTime}
+      ManualFieldValSpec rawFieldVal -> do
+        v <- case (fieldSchema, getTyped @RawFieldValBody rawFieldVal) of
+          (EnumFieldSchema varList, RawEnumBody var) -> do
+            case selectVariantByLabel varList var of
               Nothing ->
                 throwError $ injectTyped $ AggregateErrorWithState (AggregateDuringRequest valAggId) NoSuchVariant
-              Just a ->
-                pure a
-      let newEvts = [EntryMade (EntryMadeEvent reqEntryId entry)]
-      void $ insertEventsValidated valAggId (Just agg) nowTime newEvts
-      pure entry
-    Just (_existingDecCreatedTime, existingDecAgg) ->
-      pure $ getTyped @InternalEntry existingDecAgg
+              Just varSel ->
+                pure (EnumBody varSel)
+          (IntFieldSchema intSchema, RawIntBody intBody) -> do
+            case mkBoundedInt intSchema intBody of
+              Nothing ->
+                throwError $ injectTyped $ AggregateErrorWithState (AggregateDuringRequest valAggId) (undefined :: LedgerAggregateError)
+              Just boundedInt ->
+                pure (IntBody boundedInt)
+          (_fSc, _fBody) ->
+            throwError $ injectTyped $ AggregateErrorWithState (AggregateDuringRequest valAggId) (undefined :: LedgerAggregateError)
+        pure FieldVal {v, entryTime = getField @"entryTime" rawFieldVal}
+    pure (fieldId, InternalFieldValBody <$> fieldVal)
+  let internalEntry = Map.fromList (Map.elems fLabToIdAndVal)
+  let publicEntry = fLabToIdAndVal <&> \(_fId, fVal) -> unInternalFieldValBody <$> fVal
+  let newEvts = [EntryMade (EntryMadeEvent reqEntryId internalEntry)]
+  void $ insertEventsValidated valAggId (Just agg) nowTime newEvts
+  pure publicEntry
 
 summariseEntry ::
   ( MonadIO m,
@@ -160,11 +200,12 @@ summariseEntry ::
   m EntrySummary
 summariseEntry ledgerId reqEntryId = do
   (agg, valAggId) <- fetchCreatedLedgerAggById ledgerId
+  let labToId = getTyped @FieldLabelIdMap agg
   case List.lookup reqEntryId (getField @"entries" agg) of
     Nothing ->
       throwError $ injectTyped $ AggregateErrorWithState (AggregateDuringRequest valAggId) NoSuchEntry
     Just (decCreateTime, entryAgg) ->
-      pure $ toEntrySummary reqEntryId decCreateTime entryAgg
+      pure $ toEntrySummary labToId reqEntryId decCreateTime entryAgg
 
 invalidateEntry ::
   ( MonadIO m,

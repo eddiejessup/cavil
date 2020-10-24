@@ -3,11 +3,12 @@ module Cavil.Event.Ledger where
 import Cavil.Api.Ledger
 import Cavil.Api.Ledger.Var
 import Cavil.Event.Common
-import Cavil.Hashing (nextEntryIdInChain)
+import Cavil.Hashing
 import Data.Aeson qualified as Ae
 import Data.Generics.Product.Typed
 import Data.Generics.Sum (AsType, injectTyped)
 import Data.List qualified as List
+import Data.Map.Strict qualified as Map
 import Data.Time (UTCTime)
 import Database.PostgreSQL.Simple.FromField qualified as PG
 import Database.PostgreSQL.Simple.ToField qualified as PG
@@ -34,24 +35,45 @@ instance PG.ToField (LedgerEvent) where
 
 data LedgerCreatedEvent = LedgerCreatedEvent
   { ledgerLabel :: LedgerLabel,
-    schema :: InternalLedgerSchema
+    fieldIdSchemas :: InternalLedgerSchema,
+    fieldLabelIds :: FieldLabelIdMap
   }
   deriving stock (Generic)
   deriving anyclass (Ae.ToJSON, Ae.FromJSON)
 
-type InternalLedgerSchema = Map FieldLabel (VariantList, FieldId)
+type InternalLedgerSchema = Map FieldId FieldSchema
 
-type InternalEntry = Map FieldLabel (FieldVal VariantSelection)
+type FieldLabelIdMap = Map FieldLabel FieldId
+
+newtype InternalFieldValBody = InternalFieldValBody {unInternalFieldValBody :: FieldValBody}
+  deriving stock (Generic)
+
+instance Ae.FromJSON InternalFieldValBody where
+  parseJSON v =
+    InternalFieldValBody
+      <$> ( EnumBody . UnsafeVariantSelection <$> Ae.parseJSON @Variant v
+              <|> (IntBody . UnsafeBoundedInt) <$> Ae.parseJSON @Int v
+          )
+
+instance Ae.ToJSON InternalFieldValBody where
+  toJSON (InternalFieldValBody v) = case v of
+    EnumBody varSel -> Ae.toJSON varSel
+    IntBody n -> Ae.toJSON n
+
+type PublicEntry = Map FieldLabel (FieldVal FieldValBody)
+
+type InternalEntry = Map FieldId (FieldVal InternalFieldValBody)
+
+makePublicEntry :: FieldLabelIdMap -> InternalEntry -> PublicEntry
+makePublicEntry labToId idToIFVal =
+  fmap unInternalFieldValBody <$> Map.compose idToIFVal labToId
 
 data EntryMadeEvent = EntryMadeEvent
   { entryId :: EntryId,
     entry :: InternalEntry
   }
   deriving stock (Generic)
-
-deriving anyclass instance Ae.ToJSON EntryMadeEvent
-
-deriving anyclass instance Ae.FromJSON EntryMadeEvent
+  deriving anyclass (Ae.ToJSON, Ae.FromJSON)
 
 data EntryInvalidatedEvent = EntryInvalidatedEvent
   { entryId :: EntryId,
@@ -66,16 +88,24 @@ data EntryInvalidatedEvent = EntryInvalidatedEvent
 
 data LedgerAggregate = LedgerAggregate
   { ledgerLabel :: LedgerLabel,
-    schema :: InternalLedgerSchema,
+    fieldLabelIds :: InternalLedgerSchema,
+    fieldIdSchemas :: FieldLabelIdMap,
     entries :: EntriesMap
   }
   deriving stock (Generic)
+
+aggPublicSchema :: LedgerAggregate -> PublicLedgerSchema
+aggPublicSchema agg = makePublicSchema (getTyped @FieldLabelIdMap agg) (getTyped @InternalLedgerSchema agg)
+
+makePublicSchema :: FieldLabelIdMap -> InternalLedgerSchema -> PublicLedgerSchema
+makePublicSchema = flip Map.compose
 
 initialLedgerAggregate :: LedgerCreatedEvent -> LedgerAggregate
 initialLedgerAggregate ev =
   LedgerAggregate
     { ledgerLabel = getTyped @LedgerLabel ev,
-      schema = getTyped @InternalLedgerSchema ev,
+      fieldLabelIds = getTyped @InternalLedgerSchema ev,
+      fieldIdSchemas = getTyped @FieldLabelIdMap ev,
       entries = []
     }
 
@@ -102,17 +132,11 @@ initialEntryAggregate ev =
 
 -- Folding events.
 
--- | Do not filter to only valid entries, or the ID chain will lose
--- coherence.
-lastEntryId :: LedgerAggregate -> Maybe EntryId
-lastEntryId agg =
-  fst <$> lastMay (getTyped @EntriesMap agg)
-
 nextEntryIdFromAgg :: LedgerId -> LedgerAggregate -> EntryId
 nextEntryIdFromAgg ledgerId agg =
-  Cavil.Hashing.nextEntryIdInChain $ case lastEntryId agg of
-    Nothing -> Left ledgerId
-    Just lastId -> Right lastId
+  let -- Do not filter to only valid entries, or the ID chain will lose coherence.
+      entryIds = fst <$> getTyped @EntriesMap agg
+   in nextIdFromChain ledgerId entryIds
 
 foldLedgerEvent :: (MonadError e m, AsType (AggregateErrorWithState LedgerAggregateError) e) => AggregateState -> Maybe LedgerAggregate -> (LedgerEvent, UTCTime) -> m (Maybe LedgerAggregate)
 foldLedgerEvent aggState mayAgg (evt, createdTime) = case evt of

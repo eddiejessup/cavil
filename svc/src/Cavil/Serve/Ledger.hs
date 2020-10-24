@@ -72,7 +72,7 @@ mapAggregateError mayLedgerId (AggregateErrorWithState aggState detail) =
               "Entry has already been invalidated"
             InconsistentVariant ->
               "Manual entry-variant is inconsistent with existing variant"
-       in simpleClientError OurFault detailMsg vals
+       in simpleClientError BadRequest detailMsg vals
   where
     vals = maybe mempty ("ledgerId" .=) mayLedgerId
 
@@ -125,7 +125,7 @@ ledgerRecordEntry ::
   RecordEntryRequest ->
   m RecordEntryResponse
 ledgerRecordEntry _user ledgerId dId recordDecReq =
-  runExceptT (recordEntryRandom ledgerId dId recordDecReq)
+  runExceptT (recordEntry ledgerId dId recordDecReq)
     >>= \case
       Left e ->
         throwError $

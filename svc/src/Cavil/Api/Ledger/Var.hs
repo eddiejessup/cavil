@@ -1,6 +1,5 @@
 module Cavil.Api.Ledger.Var
   ( Variant (..),
-    RawVariantSelection (..),
     VariantSelection (..),
     VariantList (..),
     selectVariantByIdx,
@@ -17,14 +16,13 @@ import Data.Containers.ListUtils (nubOrd)
 import Protolude
 import Servant.API (FromHttpApiData)
 
-
 newtype Variant = Variant {unVariant :: Text}
   deriving stock (Generic, Show)
   deriving newtype (Eq, Ord, Ae.ToJSON, Ae.FromJSON, FromHttpApiData)
 
 newtype VariantSelection = UnsafeVariantSelection {unVariantSelection :: Variant}
   deriving stock (Generic, Show)
-  deriving newtype (Ae.FromJSON, Ae.ToJSON, Eq)
+  deriving newtype (Ae.ToJSON, Eq)
   deriving newtype (Ord) -- For use in a Map
 
 variantSelectionVariant :: VariantSelection -> Variant
@@ -35,10 +33,10 @@ selectVariantByIdx vl n = do
   v <- unVariantList vl `atMay` n
   pure $ UnsafeVariantSelection v
 
-selectVariantByLabel :: VariantList -> RawVariantSelection -> Maybe VariantSelection
+selectVariantByLabel :: VariantList -> Variant -> Maybe VariantSelection
 selectVariantByLabel vl v
-  | unRawVariantSelection v `elem` unVariantList vl =
-    Just (UnsafeVariantSelection (unRawVariantSelection v))
+  | v `elem` unVariantList vl =
+    Just (UnsafeVariantSelection v)
   | otherwise = Nothing
 
 newtype VariantList = VariantList {unVariantList :: [Variant]}
@@ -61,10 +59,5 @@ mkVariantList vs
   | otherwise = Just $ VariantList vs
 
 mkSimpleVariantList :: Int -> Maybe VariantList
-mkSimpleVariantList nrVars
-  = mkVariantList $ Variant . show <$> (take nrVars [0..] :: [Int])
-
-newtype RawVariantSelection = RawVariantSelection {unRawVariantSelection :: Variant}
-  deriving stock (Generic, Show)
-  deriving newtype (Ae.FromJSON, Eq, FromHttpApiData)
-  deriving newtype (Ord) -- For use in a Map
+mkSimpleVariantList nrVars =
+  mkVariantList $ Variant . show <$> (take nrVars [0 ..] :: [Int])

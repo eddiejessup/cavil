@@ -1,0 +1,14 @@
+{
+    "label": "foo",
+    "schema": {
+        "n": {
+            "type": "int",
+            "min": 2,
+            "max": 10
+        },
+        "v": {
+            "type": "enum",
+            "variants": ["a", "b"]
+        }
+    }
+}

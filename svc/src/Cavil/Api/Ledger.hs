@@ -1,8 +1,10 @@
 module Cavil.Api.Ledger where
 
-import Data.Aeson ((.:))
 import Cavil.Api.Ledger.Var
+import Control.Monad.Fail (MonadFail (fail))
+import Data.Aeson ((.:), (.=))
 import Data.Aeson qualified as Ae
+import Data.HashMap.Strict qualified as HM
 import Data.Time.Clock qualified as T
 import Data.UUID (UUID)
 import Protolude
@@ -43,7 +45,7 @@ newtype FieldLabel = FieldLabel {unFieldLabel :: Text}
 
 newtype FieldId = FieldId {unFieldId :: UUID}
   deriving stock (Generic, Show)
-  deriving newtype (Ae.ToJSON, Ae.FromJSON, Eq, FromHttpApiData)
+  deriving newtype (Ae.ToJSON, Ae.ToJSONKey, Ae.FromJSON, Ae.FromJSONKey, Eq, FromHttpApiData)
   deriving newtype (Ord) -- For use in a Map
 
 -- /Interface domain types.
@@ -51,16 +53,72 @@ newtype FieldId = FieldId {unFieldId :: UUID}
 -- Request interfaces.
 data CreateLedgerRequest = CreateLedgerRequest
   { label :: LedgerLabel,
-    schema :: LedgerSchema
+    schema :: PublicLedgerSchema
   }
   deriving stock (Generic)
   deriving anyclass (Ae.FromJSON)
 
-type LedgerSchema = Map FieldLabel VariantList
+type PublicLedgerSchema = Map FieldLabel FieldSchema
 
-type RecordEntryRequest = Map FieldLabel (FieldValSpec RawVariantSelection)
+data FieldSchema
+  = EnumFieldSchema VariantList
+  | IntFieldSchema IntSchema
 
-type RecordEntryResponse = Map FieldLabel (FieldVal VariantSelection)
+instance Ae.FromJSON FieldSchema where
+  parseJSON = Ae.withObject "FieldSchema" $ \obj -> do
+    fieldType <- obj .: "type"
+    case fieldType :: Text of
+      "enum" ->
+        EnumFieldSchema <$> obj .: "variants"
+      "int" -> do
+        intSchema <-
+          IntSchema
+            <$> obj .: "min"
+            <*> obj .: "max"
+        pure $ IntFieldSchema intSchema
+
+instance Ae.ToJSON FieldSchema where
+  toJSON = \case
+    EnumFieldSchema vs ->
+      Ae.object ["type" .= Ae.String "enum", "variants" .= Ae.toJSON vs]
+    IntFieldSchema intSc -> case Ae.toJSON intSc of
+      Ae.Object obj ->
+        Ae.Object $ HM.insert "type" (Ae.String "int") obj
+      _ ->
+        panic "IntSchema encoding did not return object"
+
+data IntSchema = IntSchema {intMin, intMax :: Int}
+  deriving stock (Generic)
+
+instance Ae.FromJSON IntSchema where
+  parseJSON = Ae.withObject "IntSchema" $ \obj -> do
+    intMin <- obj .: "min"
+    intMax <- obj .: "max"
+    case mkIntSchema intMin intMax of
+      Nothing ->
+        fail $ "parsing IntSchema failed, max is not strictly greater than min: " <> show (intMin, intMax)
+      Just v ->
+        pure v
+
+instance Ae.ToJSON IntSchema where
+  toJSON IntSchema {intMin, intMax} =
+    Ae.object ["min" .= intMin, "max" .= intMax]
+
+mkIntSchema :: Int -> Int -> Maybe IntSchema
+mkIntSchema intMin intMax
+  | intMax > intMin = Just IntSchema {intMin, intMax}
+  | otherwise = Nothing
+
+type RecordEntryRequest = Map FieldLabel (FieldValSpec RawFieldValBody)
+
+data RawFieldValBody
+  = RawEnumBody Variant
+  | RawIntBody Int
+
+instance Ae.FromJSON RawFieldValBody where
+  parseJSON v =
+    RawEnumBody <$> Ae.parseJSON @Variant v
+      <|> RawIntBody <$> Ae.parseJSON @Int v
 
 data InvalidateEntryRequest = InvalidateEntryRequest
   { reason :: Text
@@ -105,11 +163,19 @@ instance Ae.FromJSON a => Ae.FromJSON (FieldVal a) where
 -- /Request interfaces.
 
 -- Response interfaces.
+type RecordEntryResponse = Map FieldLabel (FieldVal FieldValBody)
+
+data FieldValBody
+  = EnumBody VariantSelection
+  | IntBody BoundedInt
+  deriving stock (Generic)
+  deriving anyclass (Ae.ToJSON)
+
 data LedgerSummary = LedgerSummary
   { id :: LedgerId,
     nextEntryId :: EntryId,
     label :: LedgerLabel,
-    schema :: LedgerSchema,
+    schema :: PublicLedgerSchema,
     entries :: [EntrySummary]
   }
   deriving stock (Generic)
@@ -125,6 +191,19 @@ data EntrySummary = EntrySummary
   deriving stock (Generic)
   deriving anyclass (Ae.ToJSON)
 
-type EntryBody = Map FieldLabel (FieldVal VariantSelection)
+type EntryBody = Map FieldLabel (FieldVal FieldValBody)
 
 -- /Response interfaces.
+
+-- Bounded Ints.
+
+data BoundedInt = UnsafeBoundedInt Int
+  deriving stock (Generic)
+  deriving anyclass (Ae.ToJSON)
+
+mkBoundedInt :: IntSchema -> Int -> Maybe BoundedInt
+mkBoundedInt IntSchema {intMin, intMax} intVal
+  | intVal >= intMin && intVal <= intMax = Just (UnsafeBoundedInt intVal)
+  | otherwise = Nothing
+
+-- / Bounded Ints.

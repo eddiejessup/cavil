@@ -116,7 +116,7 @@ insertEvents valAggId evts = do
   when (nrRowsAffected /= length evts) $
     throwError $
       injectTyped $
-        InsertedUnexpectedNrRows (fromIntegral nrRowsAffected)
+        InsertedUnexpectedNrRows nrRowsAffected
 
 data AggregateState
   = AggregateBeforeRequest AggregateId

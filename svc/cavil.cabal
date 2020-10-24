@@ -35,14 +35,14 @@ library
   hs-source-dirs:
       src
   default-extensions: BlockArguments ConstraintKinds DataKinds DeriveAnyClass DeriveFoldable DeriveFunctor DeriveGeneric DeriveLift DeriveTraversable DerivingStrategies DuplicateRecordFields EmptyCase FlexibleContexts FlexibleInstances GeneralizedNewtypeDeriving ImportQualifiedPost InstanceSigs LambdaCase MultiParamTypeClasses MultiWayIf NamedFieldPuns NoImplicitPrelude NumericUnderscores OverloadedStrings ScopedTypeVariables StandaloneDeriving TupleSections TypeApplications TypeFamilies TypeOperators
-  ghc-options: -Wall -Wcompat -Wincomplete-record-updates -Wincomplete-uni-patterns -Wredundant-constraints -Wno-warnings-deprecations -Wno-incomplete-patterns -Wno-incomplete-uni-patterns -Wmissing-deriving-strategies -haddock
+  ghc-options: -Wall -Wcompat -Wincomplete-record-updates -Wredundant-constraints -Wno-incomplete-uni-patterns -Wmissing-deriving-strategies -Widentities -Wpartial-fields -haddock
   build-depends:
       aeson
     , base
     , binary
     , bytestring
     , cabal-file-th
-    , containers
+    , containers >=0.6.4 && <0.6.5
     , cryptohash-sha256
     , data-default
     , generic-optics
@@ -71,7 +71,7 @@ executable app
   hs-source-dirs:
       app
   default-extensions: BlockArguments ConstraintKinds DataKinds DeriveAnyClass DeriveFoldable DeriveFunctor DeriveGeneric DeriveLift DeriveTraversable DerivingStrategies DuplicateRecordFields EmptyCase FlexibleContexts FlexibleInstances GeneralizedNewtypeDeriving ImportQualifiedPost InstanceSigs LambdaCase MultiParamTypeClasses MultiWayIf NamedFieldPuns NoImplicitPrelude NumericUnderscores OverloadedStrings ScopedTypeVariables StandaloneDeriving TupleSections TypeApplications TypeFamilies TypeOperators
-  ghc-options: -Wall -Wcompat -Wincomplete-record-updates -Wincomplete-uni-patterns -Wredundant-constraints -Wno-warnings-deprecations -Wno-incomplete-patterns -Wno-incomplete-uni-patterns -Wmissing-deriving-strategies -haddock
+  ghc-options: -Wall -Wcompat -Wincomplete-record-updates -Wredundant-constraints -Wno-incomplete-uni-patterns -Wmissing-deriving-strategies -Widentities -Wpartial-fields -haddock
   build-depends:
       aeson
     , base
@@ -79,7 +79,7 @@ executable app
     , bytestring
     , cabal-file-th
     , cavil
-    , containers
+    , containers >=0.6.4 && <0.6.5
     , cryptohash-sha256
     , data-default
     , generic-optics
@@ -107,7 +107,7 @@ test-suite test
   hs-source-dirs:
       test
   default-extensions: BlockArguments ConstraintKinds DataKinds DeriveAnyClass DeriveFoldable DeriveFunctor DeriveGeneric DeriveLift DeriveTraversable DerivingStrategies DuplicateRecordFields EmptyCase FlexibleContexts FlexibleInstances GeneralizedNewtypeDeriving ImportQualifiedPost InstanceSigs LambdaCase MultiParamTypeClasses MultiWayIf NamedFieldPuns NoImplicitPrelude NumericUnderscores OverloadedStrings ScopedTypeVariables StandaloneDeriving TupleSections TypeApplications TypeFamilies TypeOperators
-  ghc-options: -Wall -Wcompat -Wincomplete-record-updates -Wincomplete-uni-patterns -Wredundant-constraints -Wno-warnings-deprecations -Wno-incomplete-patterns -Wno-incomplete-uni-patterns -Wmissing-deriving-strategies -haddock
+  ghc-options: -Wall -Wcompat -Wincomplete-record-updates -Wredundant-constraints -Wno-incomplete-uni-patterns -Wmissing-deriving-strategies -Widentities -Wpartial-fields -haddock
   build-depends:
       Cabal
     , aeson
@@ -116,7 +116,7 @@ test-suite test
     , bytestring
     , cabal-file-th
     , cavil
-    , containers
+    , containers >=0.6.4 && <0.6.5
     , cryptohash-sha256
     , data-default
     , generic-optics

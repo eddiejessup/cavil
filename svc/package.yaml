@@ -9,12 +9,11 @@ ghc-options:
   - -Wall
   - -Wcompat
   - -Wincomplete-record-updates
-  - -Wincomplete-uni-patterns
   - -Wredundant-constraints
-  - -Wno-warnings-deprecations
-  - -Wno-incomplete-patterns
   - -Wno-incomplete-uni-patterns
   - -Wmissing-deriving-strategies
+  - -Widentities
+  - -Wpartial-fields
   - -haddock
 
 dependencies:
@@ -23,7 +22,7 @@ dependencies:
   - binary
   - bytestring
   - cabal-file-th
-  - containers
+  - containers >= 0.6.4 && < 0.6.5
   - cryptohash-sha256
   - data-default
   - generic-optics
